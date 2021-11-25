@@ -1,7 +1,7 @@
 # xoodoo
-Golang Implementation of Xoodoo Permutation and Xoofff/Xoodayk Crypto Suites
+Golang Implementation of Xoodoo Permutation and Xoofff/Xoodyak Crypto Suites
 
 
 ## WIP
 - xoodoo permuation working
-- xoodayk suite in progress
+- xoodyak suite in progress
