@@ -109,12 +109,12 @@ func NewXooDoo(rounds int, state [48]byte) (*XooDoo, error) {
 	var new XooDoo
 	new.rounds = rounds
 	if rounds > len(RoundConstants) {
-		return nil, fmt.Errorf("BAD ROUNDS")
+		return nil, fmt.Errorf("invalid number of rounds: %d", rounds)
 	}
 	buf := bytes.NewReader(state[:])
 	err := binary.Read(buf, binary.LittleEndian, &new.State)
 	if err != nil {
-		return nil, fmt.Errorf("BAD STATE")
+		return nil, fmt.Errorf("invalid initial state")
 	}
 	return &new, nil
 }
