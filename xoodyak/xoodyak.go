@@ -1,9 +1,6 @@
 package xoodyak
 
 import (
-	"bytes"
-	"encoding/binary"
-
 	"github.com/inmcm/xoodoo/xoodoo"
 )
 
@@ -14,6 +11,7 @@ const (
 	Xoodyak_Rkout          = 24
 	Xoodyak_lRatchet       = 16
 	AbsorbCdInit     uint8 = 0x03
+	AbsorbCdMain     uint8 = 0x00
 	SqueezeCuInit    uint8 = 0x40
 )
 
@@ -38,11 +36,6 @@ type Xoodyak struct {
 	AbsorbSize  uint
 	SqueezeSize uint
 }
-
-// Support for hash.Hash interface
-func (xk Xoodyak) Size() int      { return hashSize }
-func (xk Xoodyak) BlockSize() int { return f_bPrime }
-func (xk *Xoodyak) Reset()        {}
 
 // Standard Xoodyak Interfactes
 func Instantiate(key, id, counter []byte) (*Xoodyak, error) {
@@ -77,6 +70,17 @@ func (xk *Xoodyak) SqueezeKey() error {
 func (xk *Xoodyak) Ratchet() error {
 	return nil
 }
+
+// AbsorBlock
+func (xk *Xoodyak) AbsorbBlock(x []byte, r uint, cd uint8) {
+	if xk.Phase != Up {
+		xk.Up(0, 0)
+	}
+	xk.Down(x, cd)
+}
+
+// AbosorbAny allow input of any size number of bytes into the
+// Xoodoo state
 func (xk *Xoodyak) AbsorbAny(x []byte, r uint, cd uint8) error {
 	var cdTmp uint8 = cd
 	var processed uint = 0
@@ -93,7 +97,7 @@ func (xk *Xoodyak) AbsorbAny(x []byte, r uint, cd uint8) error {
 		}
 		copy(tmp, x[processed:])
 		xk.Down(tmp, cdTmp)
-		cdTmp = 0
+		cdTmp = AbsorbCdMain
 		remaining -= absorbLen
 		processed += absorbLen
 		if remaining <= 0 {
@@ -131,15 +135,11 @@ func (xk *Xoodyak) Down(Xi []byte, Cd byte) {
 	if xk.Mode == Hash {
 		cd1 &= 0x01
 	}
-	fill := make([]byte, f_bPrime-(len(Xi)))
-	fill[0] = 0x01
+	fill := make([]byte, f_bPrime)
+	copy(fill, Xi)
+	fill[len(Xi)] = 0x01
 	fill[len(fill)-1] = cd1
-	Xi = append(Xi, fill...)
-
-	var downState xoodoo.XooDooState
-	buf := bytes.NewReader(Xi)
-	binary.Read(buf, binary.LittleEndian, &downState)
-	xk.Instance.State = xoodoo.XorState(xk.Instance.State, downState)
+	xk.Instance.State.XorStateBytes(fill)
 	xk.Phase = Down
 }
 

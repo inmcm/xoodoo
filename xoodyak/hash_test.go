@@ -2,8 +2,10 @@ package xoodyak
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"testing"
 
@@ -26,11 +28,15 @@ var cryptoHashBasicTestTable = []struct {
 		input:  []byte{0xFE, 0x61, 0x20, 0xC4, 0x29, 0xA8, 0xBB, 0x7D},
 		output: []byte{0x2A, 0x6C, 0x05, 0x77, 0x40, 0xF5, 0xC3, 0xCC, 0xBE, 0x06, 0x34, 0x19, 0x61, 0xAF, 0xFD, 0x0D, 0x88, 0xF5, 0x67, 0xCA, 0x48, 0x22, 0xB9, 0xF2, 0x18, 0x14, 0x20, 0x5D, 0xA7, 0xD3, 0xAA, 0xED},
 	},
+	{
+		input:  []byte{},
+		output: []byte{0xEA, 0x15, 0x2F, 0x2B, 0x47, 0xBC, 0xE2, 0x4E, 0xFB, 0x66, 0xC4, 0x79, 0xD4, 0xAD, 0xF1, 0x7B, 0xD3, 0x24, 0xD8, 0x06, 0xE8, 0x5F, 0xF7, 0x5E, 0xE3, 0x69, 0xEE, 0x50, 0xDC, 0x8F, 0x8B, 0xD1},
+	},
 }
 
 func TestCryptoHashDoHash(t *testing.T) {
 	for _, tt := range cryptoHashBasicTestTable {
-		gotHash, _ := DoHash(tt.input)
+		gotHash, _ := HashXoodyak(tt.input)
 		assert.Equal(t, tt.output, gotHash)
 	}
 }
@@ -38,6 +44,7 @@ func TestCryptoHashDoHash(t *testing.T) {
 func TestCryptoHashOfficalKAT(t *testing.T) {
 	kat, err := os.Open("LWC_HASH_KAT_256.txt")
 	assert.NoError(t, err)
+	defer kat.Close()
 	katBuf := bufio.NewReader(kat)
 
 	var count int
@@ -61,7 +68,7 @@ func TestCryptoHashOfficalKAT(t *testing.T) {
 		hashBytes, err := hex.DecodeString(hash)
 		assert.NoError(t, err)
 
-		gotHash, err := DoHash(msgBytes)
+		gotHash, err := HashXoodyak(msgBytes)
 		assert.NoError(t, err)
 		assert.Equal(t, hashBytes, gotHash)
 
@@ -69,5 +76,61 @@ func TestCryptoHashOfficalKAT(t *testing.T) {
 		_, _, err = katBuf.ReadLine()
 		assert.NoError(t, err)
 	}
+}
 
+func TestXoodyakHashMode(t *testing.T) {
+	for _, tt := range cryptoHashBasicTestTable {
+		rd := bytes.NewBuffer(tt.input)
+		newXk := NewXoodyak()
+		gotWritten, err := io.Copy(newXk, rd)
+		assert.Equal(t, int64(len(tt.input)), gotWritten)
+		assert.NoError(t, err)
+		gotHash := newXk.Sum(nil)
+		assert.Equal(t, tt.output, gotHash)
+	}
+}
+
+func TestXoodyakHashKATFile(t *testing.T) {
+	hashKATfile := []byte{0x94, 0xF3, 0xB7, 0x04, 0xFA, 0x7D, 0x50, 0x34, 0x92, 0xA8, 0xD5, 0x4A, 0x77, 0xFB, 0x67, 0xB3, 0xBD, 0xD9, 0x8F, 0xF2, 0x17, 0xDE, 0x86, 0x1D, 0x2E, 0x7E, 0x7D, 0xD6, 0x08, 0xE6, 0x94, 0x8F}
+	kat, err := os.Open("LWC_HASH_KAT_256.txt")
+	assert.NoError(t, err)
+	defer kat.Close()
+	newXk := NewXoodyak()
+	io.Copy(newXk, kat)
+	gotHash := newXk.Sum(nil)
+	assert.Equal(t, hashKATfile, gotHash)
+}
+
+func TestXoodyakHashWrite(t *testing.T) {
+
+	newXk := NewXoodyak()
+	bytes1 := make([]byte, 16)
+	bytes2 := make([]byte, 8)
+	bytes3 := make([]byte, 33)
+	bytes4 := make([]byte, 7)
+	bytes5 := make([]byte, 34)
+	bytes6 := make([]byte, 15)
+
+	gotNN1, err := newXk.Write(bytes1)
+	assert.Equal(t, len(bytes1), gotNN1)
+	assert.NoError(t, err)
+	gotNN2, err := newXk.Write(bytes2)
+	assert.Equal(t, len(bytes2), gotNN2)
+	assert.NoError(t, err)
+	gotNN3, err := newXk.Write(bytes3)
+	assert.Equal(t, len(bytes3), gotNN3)
+	assert.NoError(t, err)
+	gotNN4, err := newXk.Write(bytes4)
+	assert.Equal(t, len(bytes4), gotNN4)
+	assert.NoError(t, err)
+	gotNN5, err := newXk.Write(bytes5)
+	assert.Equal(t, len(bytes5), gotNN5)
+	assert.NoError(t, err)
+	gotNN6, err := newXk.Write(bytes6)
+	assert.Equal(t, len(bytes6), gotNN6)
+	assert.NoError(t, err)
+
+	gotHash := newXk.Sum(nil)
+	calculatedHash := []byte{0xBD, 0x45, 0x5D, 0x88, 0xE9, 0xC6, 0xB7, 0x04, 0x74, 0x66, 0x69, 0x29, 0x36, 0x48, 0x96, 0xCE, 0x17, 0x8C, 0x94, 0x60, 0xE9, 0xC7, 0x85, 0x67, 0x7B, 0x80, 0x07, 0xE2, 0x5B, 0xD9, 0xA8, 0xD3}
+	assert.Equal(t, calculatedHash, gotHash)
 }

@@ -82,6 +82,15 @@ func XorState(a, b XooDooState) XooDooState {
 	}
 }
 
+func (xds *XooDooState) XorStateBytes(in []byte) {
+	for i := 0; i < 3; i++ {
+		for j := 0; j < 4; j++ {
+			x := (i * 16) + (j * 4)
+			xds[i][j] ^= XooDooLane(binary.LittleEndian.Uint32(in[x : x+4]))
+		}
+	}
+}
+
 func AndPlane(a, b XooDooPlane) XooDooPlane {
 	return XooDooPlane{
 		a[0] & b[0],
