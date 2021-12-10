@@ -101,8 +101,28 @@ func (xdp XooDooPlane) Shift(x, z int) XooDooPlane {
 	}
 }
 
-func (xds *XooDooState) IotaStep(round uint) {
-	xds[0] = XorPlane(xds[0], XooDooPlane{XooDooLane(RoundConstants[round]), 0, 0, 0})
+func (xds *XooDooState) UnmarshalBinary(data []byte) error {
+	if len(data) != 48 {
+		return fmt.Errorf("input data (%d bytes) != xoodoo state size (48 bytes)", len(data))
+	}
+	for i := 0; i < 3; i++ {
+		for j := 0; j < 4; j++ {
+			x := (i * 16) + (j * 4)
+			xds[i][j] = XooDooLane(binary.LittleEndian.Uint32(data[x : x+4]))
+		}
+	}
+	return nil
+}
+
+func (xds *XooDooState) MarshalBinary() (data []byte, err error) {
+	data = make([]byte, 48)
+	for i := 0; i < 3; i++ {
+		for j := 0; j < 4; j++ {
+			x := (i * 16) + (j * 4)
+			binary.LittleEndian.PutUint32(data[x:x+4], uint32(xds[i][j]))
+		}
+	}
+	return data, nil
 }
 
 func NewXooDoo(rounds int, state [48]byte) (*XooDoo, error) {
@@ -120,10 +140,9 @@ func NewXooDoo(rounds int, state [48]byte) (*XooDoo, error) {
 }
 
 func (xd *XooDoo) Bytes() [48]byte {
-	buf := bytes.Buffer{}
-	binary.Write(&buf, binary.LittleEndian, xd.State)
+	buf, _ := xd.State.MarshalBinary()
 	out := [48]byte{}
-	copy(out[:], buf.Bytes())
+	copy(out[:], buf)
 	return out
 }
 
