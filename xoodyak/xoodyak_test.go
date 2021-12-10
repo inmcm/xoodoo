@@ -92,6 +92,18 @@ var xoodyakCyclistDownTestTable = []struct {
 	},
 }
 
+func BenchmarkXoodyakCyclistDown(b *testing.B) {
+	var newXd xoodoo.XooDoo
+	var newXk Xoodyak
+	newXk.Instance = &newXd
+	newXk.Mode = Hash
+	newXk.Phase = Down
+	input := make([]byte, 16)
+	for n := 0; n < b.N; n++ {
+		newXk.Down(input, 0x03)
+	}
+}
+
 func TestXoodyakCyclistDown(t *testing.T) {
 	for _, tt := range xoodyakCyclistDownTestTable {
 		var newXd xoodoo.XooDoo
@@ -159,6 +171,17 @@ var xoodyakCyclistUpTestTable = []struct {
 		yilen:      16,
 		yiOut:      []byte{0xD3, 0x24, 0xD8, 0x06, 0xE8, 0x5F, 0xF7, 0x5E, 0xE3, 0x69, 0xEE, 0x50, 0xDC, 0x8F, 0x8B, 0xD1},
 	},
+}
+
+func BenchmarkXoodyakCyclistUp(b *testing.B) {
+	newXd, _ := xoodoo.NewXooDoo(12, [48]byte{})
+	var newXk Xoodyak
+	newXk.Instance = newXd
+	newXk.Mode = Hash
+	newXk.Phase = Up
+	for n := 0; n < b.N; n++ {
+		newXk.Up(0x00, 16)
+	}
 }
 
 func TestXoodyakCyclistUp(t *testing.T) {
