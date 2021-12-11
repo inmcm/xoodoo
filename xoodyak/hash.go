@@ -67,14 +67,11 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 			p = p[hashSize:]
 			d.absorbCd = AbsorbCdMain
 		}
-
 	}
 	if len(p) > 0 {
 		d.nx = copy(d.x[:], p)
 	}
-
 	return
-
 }
 
 func (d *digest) Sum(in []byte) []byte {

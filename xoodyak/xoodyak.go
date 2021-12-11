@@ -85,7 +85,6 @@ func (xk *Xoodyak) AbsorbAny(x []byte, r uint, cd uint8) error {
 	var cdTmp uint8 = cd
 	var processed uint = 0
 	var remaining uint = uint(len(x))
-	tmp := make([]byte, r)
 	absorbLen := r
 	for {
 		if xk.Phase != Up {
@@ -93,10 +92,8 @@ func (xk *Xoodyak) AbsorbAny(x []byte, r uint, cd uint8) error {
 		}
 		if remaining < absorbLen {
 			absorbLen = remaining
-			tmp = make([]byte, absorbLen)
 		}
-		copy(tmp, x[processed:])
-		xk.Down(tmp, cdTmp)
+		xk.Down(x[processed:processed+absorbLen], cdTmp)
 		cdTmp = AbsorbCdMain
 		remaining -= absorbLen
 		processed += absorbLen

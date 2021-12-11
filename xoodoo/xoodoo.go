@@ -83,9 +83,10 @@ func XorState(a, b XooDooState) XooDooState {
 }
 
 func (xds *XooDooState) XorStateBytes(in []byte) {
-	for i := 0; i < 3; i++ {
-		for j := 0; j < 4; j++ {
-			x := (i * 16) + (j * 4)
+	var x, j, i int
+	for i = 0; i < 3; i++ {
+		for j = 0; j < 4; j++ {
+			x = (i << 4) + (j << 2)
 			xds[i][j] ^= XooDooLane(binary.LittleEndian.Uint32(in[x : x+4]))
 		}
 	}
@@ -148,11 +149,9 @@ func NewXooDoo(rounds int, state [48]byte) (*XooDoo, error) {
 	return &new, nil
 }
 
-func (xd *XooDoo) Bytes() [48]byte {
+func (xd *XooDoo) Bytes() []byte {
 	buf, _ := xd.State.MarshalBinary()
-	out := [48]byte{}
-	copy(out[:], buf)
-	return out
+	return buf
 }
 
 func (xd *XooDoo) PermutationSlow() {
