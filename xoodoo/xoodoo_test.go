@@ -87,3 +87,26 @@ func TestPermutation(t *testing.T) {
 		assert.Equal(t, tt.outBytes, newXD.Bytes())
 	}
 }
+
+func BenchmarkXorStateBytes(b *testing.B) {
+	newXD, _ := NewXooDoo(12, [48]byte{})
+	data := make([]byte, 48)
+	for n := 0; n < b.N; n++ {
+		newXD.State.XorStateBytes(data)
+	}
+}
+
+func BenchmarkUnmarshalBinary(b *testing.B) {
+	newXD, _ := NewXooDoo(12, [48]byte{})
+	data := make([]byte, 48)
+	for n := 0; n < b.N; n++ {
+		newXD.State.UnmarshalBinary(data)
+	}
+}
+
+func BenchmarkMarshalBinary(b *testing.B) {
+	newXD, _ := NewXooDoo(12, [48]byte{})
+	for n := 0; n < b.N; n++ {
+		newXD.State.MarshalBinary()
+	}
+}
