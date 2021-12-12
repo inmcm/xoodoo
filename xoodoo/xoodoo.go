@@ -10,7 +10,6 @@ const (
 	// MaxRounds is current ceiling on how many iterations of Xoodoo can be done in the permutation
 	// function
 	MaxRounds = 12
-	laneFull  = 0xFFFFFFFF
 )
 
 var (
@@ -37,24 +36,6 @@ type XooDoo struct {
 	State  XooDooState
 	rounds int
 }
-
-// func (xdp XooDooPlane) Complement() XooDooPlane {
-// 	return XooDooPlane{
-// 		xdp[0] ^ laneFull,
-// 		xdp[1] ^ laneFull,
-// 		xdp[2] ^ laneFull,
-// 		xdp[3] ^ laneFull,
-// 	}
-// }
-
-// func XorPlane(a, b XooDooPlane) XooDooPlane {
-// 	return XooDooPlane{
-// 		a[0] ^ b[0],
-// 		a[1] ^ b[1],
-// 		a[2] ^ b[2],
-// 		a[3] ^ b[3],
-// 	}
-// }
 
 func XorState(a, b XooDooState) XooDooState {
 	return XooDooState{
@@ -87,25 +68,6 @@ func (xds *XooDooState) XorStateBytes(in []byte) {
 	xds[10] ^= (binary.LittleEndian.Uint32(in[40:44]))
 	xds[11] ^= (binary.LittleEndian.Uint32(in[44:48]))
 }
-
-// func AndPlane(a, b XooDooPlane) XooDooPlane {
-// 	return XooDooPlane{
-// 		a[0] & b[0],
-// 		a[1] & b[1],
-// 		a[2] & b[2],
-// 		a[3] & b[3],
-// 	}
-
-// }
-
-// func (xdp XooDooPlane) Shift(x, z int) XooDooPlane {
-// 	return XooDooPlane{
-// 		XooDooLane(bits.RotateLeft32(uint32(xdp[((4-(x%4))%4)]), z)),
-// 		XooDooLane(bits.RotateLeft32(uint32(xdp[(((4-(x%4))+1)%4)]), z)),
-// 		XooDooLane(bits.RotateLeft32(uint32(xdp[(((4-(x%4))+2)%4)]), z)),
-// 		XooDooLane(bits.RotateLeft32(uint32(xdp[(((4-(x%4))+3)%4)]), z)),
-// 	}
-// }
 
 func (xds *XooDooState) UnmarshalBinary(data []byte) error {
 	if len(data) != 48 {
@@ -160,55 +122,6 @@ func (xd *XooDoo) Bytes() []byte {
 	buf, _ := xd.State.MarshalBinary()
 	return buf
 }
-
-// func (xd *XooDoo) PermutationSlow() {
-// 	xds := xd.State
-// 	var B XooDooState
-// 	var P, E XooDooPlane
-// 	for i := 0; i < xd.rounds; i++ {
-// 		// fmt.Printf("start round %d: %#08X\n", i-11, xds)
-
-// 		// Theta Step
-// 		P = XorPlane(XorPlane(xds[0], xds[1]), xds[2])
-// 		// fmt.Printf("P: %#08X\n", P)
-// 		E = XorPlane(P.Shift(1, 5), P.Shift(1, 14))
-// 		// fmt.Printf("E: %#08X\n", E)
-// 		xds = XooDooState{
-// 			XorPlane(E, xds[0]),
-// 			XorPlane(E, xds[1]),
-// 			XorPlane(E, xds[2]),
-// 		}
-// 		// fmt.Printf("after theta: %#08X\n", xds)
-
-// 		// Rho West Step
-// 		xds[1] = xds[1].Shift(1, 0)
-// 		xds[2] = xds[2].Shift(0, 11)
-// 		// fmt.Printf("after rho west: %#08X\n", xds)
-
-// 		// Iota Step
-// 		xds[0] = XorPlane(xds[0], XooDooPlane{XooDooLane(RoundConstants[i]), 0, 0, 0})
-// 		// fmt.Printf("after iota: %#08X\n", xds)
-
-// 		// Chi Step
-// 		B = XooDooState{
-// 			AndPlane(xds[1].Complement(), xds[2]),
-// 			AndPlane(xds[2].Complement(), xds[0]),
-// 			AndPlane(xds[0].Complement(), xds[1]),
-// 		}
-// 		xds = XooDooState{
-// 			XorPlane(xds[0], B[0]),
-// 			XorPlane(xds[1], B[1]),
-// 			XorPlane(xds[2], B[2]),
-// 		}
-// 		// fmt.Printf("after chi: %#08X\n", xds)
-
-// 		// Rho East Step
-// 		xds[1] = xds[1].Shift(0, 1)
-// 		xds[2] = xds[2].Shift(2, 8)
-// 		// fmt.Printf("after rho east: %#08X\n", xds)
-// 	}
-// 	xd.State = xds
-// }
 
 // Permutation executes an optimized implementation of Xoodoo permutation over the provided
 // xoodoo state
