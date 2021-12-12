@@ -74,10 +74,18 @@ func XorState(a, b XooDooState) XooDooState {
 }
 
 func (xds *XooDooState) XorStateBytes(in []byte) {
-	for i := 0; i < 12; i++ {
-		xds[i] ^= (binary.LittleEndian.Uint32(in[i*4 : (i*4)+4]))
-	}
-
+	xds[0] ^= (binary.LittleEndian.Uint32(in[0:4]))
+	xds[1] ^= (binary.LittleEndian.Uint32(in[4:8]))
+	xds[2] ^= (binary.LittleEndian.Uint32(in[8:12]))
+	xds[3] ^= (binary.LittleEndian.Uint32(in[12:16]))
+	xds[4] ^= (binary.LittleEndian.Uint32(in[16:20]))
+	xds[5] ^= (binary.LittleEndian.Uint32(in[20:24]))
+	xds[6] ^= (binary.LittleEndian.Uint32(in[24:28]))
+	xds[7] ^= (binary.LittleEndian.Uint32(in[28:32]))
+	xds[8] ^= (binary.LittleEndian.Uint32(in[32:36]))
+	xds[9] ^= (binary.LittleEndian.Uint32(in[36:40]))
+	xds[10] ^= (binary.LittleEndian.Uint32(in[40:44]))
+	xds[11] ^= (binary.LittleEndian.Uint32(in[44:48]))
 }
 
 // func AndPlane(a, b XooDooPlane) XooDooPlane {
@@ -103,17 +111,35 @@ func (xds *XooDooState) UnmarshalBinary(data []byte) error {
 	if len(data) != 48 {
 		return fmt.Errorf("input data (%d bytes) != xoodoo state size (48 bytes)", len(data))
 	}
-	for i := 0; i < 12; i++ {
-		xds[i] = binary.LittleEndian.Uint32(data[i*4 : (i*4)+4])
-	}
+	xds[0] = (binary.LittleEndian.Uint32(data[0:4]))
+	xds[1] = (binary.LittleEndian.Uint32(data[4:8]))
+	xds[2] = (binary.LittleEndian.Uint32(data[8:12]))
+	xds[3] = (binary.LittleEndian.Uint32(data[12:16]))
+	xds[4] = (binary.LittleEndian.Uint32(data[16:20]))
+	xds[5] = (binary.LittleEndian.Uint32(data[20:24]))
+	xds[6] = (binary.LittleEndian.Uint32(data[24:28]))
+	xds[7] = (binary.LittleEndian.Uint32(data[28:32]))
+	xds[8] = (binary.LittleEndian.Uint32(data[32:36]))
+	xds[9] = (binary.LittleEndian.Uint32(data[36:40]))
+	xds[10] = (binary.LittleEndian.Uint32(data[40:44]))
+	xds[11] = (binary.LittleEndian.Uint32(data[44:48]))
 	return nil
 }
 
 func (xds *XooDooState) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, 48)
-	for i := 0; i < 12; i++ {
-		binary.LittleEndian.PutUint32(data[i*4:(i*4)+4], uint32(xds[i]))
-	}
+	binary.LittleEndian.PutUint32(data[0:4], xds[0])
+	binary.LittleEndian.PutUint32(data[4:8], xds[1])
+	binary.LittleEndian.PutUint32(data[8:12], xds[2])
+	binary.LittleEndian.PutUint32(data[12:16], xds[3])
+	binary.LittleEndian.PutUint32(data[16:20], xds[4])
+	binary.LittleEndian.PutUint32(data[20:24], xds[5])
+	binary.LittleEndian.PutUint32(data[24:28], xds[6])
+	binary.LittleEndian.PutUint32(data[28:32], xds[7])
+	binary.LittleEndian.PutUint32(data[32:36], xds[8])
+	binary.LittleEndian.PutUint32(data[36:40], xds[9])
+	binary.LittleEndian.PutUint32(data[40:44], xds[10])
+	binary.LittleEndian.PutUint32(data[44:48], xds[11])
 	return data, nil
 }
 
