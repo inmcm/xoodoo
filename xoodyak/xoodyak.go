@@ -1,18 +1,25 @@
 package xoodyak
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/inmcm/xoodoo/xoodoo"
 )
 
 const (
-	f_bPrime               = 48
-	hashSize               = 16
-	Xoodyak_Rkin           = 44
-	Xoodyak_Rkout          = 24
-	Xoodyak_lRatchet       = 16
-	AbsorbCdInit     uint8 = 0x03
-	AbsorbCdMain     uint8 = 0x00
-	SqueezeCuInit    uint8 = 0x40
+	f_bPrime             = 48
+	hashSize             = 16
+	XoodyakRkin          = 44
+	XoodyakRkout         = 24
+	XoodyakRatchet       = 16
+	AbsorbCdInit   uint8 = 0x03
+	AbsorbCdMain   uint8 = 0x00
+	SqueezeCuInit  uint8 = 0x40
+	CryptCuInit    uint8 = 0x80
+	CryptCuMain    uint8 = 0x00
+	CryptCd        uint8 = 0x00
+	RatchetCu      uint8 = 0x10
 )
 
 type CyclistMode int
@@ -67,7 +74,13 @@ func (xk *Xoodyak) Squeeze(outLen uint) ([]byte, error) {
 func (xk *Xoodyak) SqueezeKey() error {
 	return nil
 }
+
 func (xk *Xoodyak) Ratchet() error {
+	if xk.Mode != Keyed {
+		return errors.New("ratchet only available in keyed mode")
+	}
+	ratchetSqueeze, _ := xk.SqueezeAny(XoodyakRatchet, RatchetCu)
+	xk.AbsorbAny(ratchetSqueeze, xk.AbsorbSize, AbsorbCdMain)
 	return nil
 }
 
