@@ -71,8 +71,11 @@ func (xk *Xoodyak) Decrypt() error {
 func (xk *Xoodyak) Squeeze(outLen uint) ([]byte, error) {
 	return xk.SqueezeAny(outLen, SqueezeCuInit)
 }
-func (xk *Xoodyak) SqueezeKey() error {
-	return nil
+func (xk *Xoodyak) SqueezeKey(keyLen uint) ([]byte, error) {
+	if xk.Mode != Keyed {
+		return []byte{}, errors.New("squeeze key only available in keyed mode")
+	}
+	return xk.SqueezeAny(keyLen, 0x20)
 }
 
 func (xk *Xoodyak) Ratchet() error {
