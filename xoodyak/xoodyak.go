@@ -36,6 +36,13 @@ const (
 	Up
 )
 
+type CryptMode int
+
+const (
+	Encrypting CryptMode = iota + 1
+	Decrypting
+)
+
 type Xoodyak struct {
 	Instance    *xoodoo.XooDoo
 	Mode        CyclistMode
@@ -55,18 +62,17 @@ func Instantiate(key, id, counter []byte) (*Xoodyak, error) {
 	if len(key) != 0 {
 		newXK.AbsorbKey(key, id, counter)
 	}
-
 	return &newXK, nil
 }
 
 func (xk *Xoodyak) Absorb(x []byte) error {
 	return xk.AbsorbAny(x, xk.AbsorbSize, AbsorbCdInit)
 }
-func (xk *Xoodyak) Encrypt() error {
-	return nil
+func (xk *Xoodyak) Encrypt(pt []byte) ([]byte, error) {
+	return xk.Crypt(pt, Encrypting)
 }
-func (xk *Xoodyak) Decrypt() error {
-	return nil
+func (xk *Xoodyak) Decrypt(ct []byte) ([]byte, error) {
+	return xk.Crypt(ct, Decrypting)
 }
 func (xk *Xoodyak) Squeeze(outLen uint) ([]byte, error) {
 	return xk.SqueezeAny(outLen, SqueezeCuInit)
@@ -120,6 +126,20 @@ func (xk *Xoodyak) AbsorbAny(x []byte, r uint, cd uint8) error {
 	return nil
 }
 func (xk *Xoodyak) AbsorbKey(key, id, counter []byte) error {
+	if len(key)+len(id) >= XoodyakRkin {
+		return fmt.Errorf("key and nonce lengths too large - key:%d nonce:%d combined:%d max:%d", len(key), len(id), len(key)+len(id), XoodyakRkin-1)
+	}
+	xk.Mode = Keyed
+	xk.AbsorbSize = XoodyakRkin
+	xk.SqueezeSize = XoodyakRkout
+	if len(key) > 0 {
+		keyIDBuf := append(key, id...)
+		keyIDBuf = append(keyIDBuf, byte(len(id)))
+		xk.AbsorbAny(keyIDBuf, xk.AbsorbSize, 0x02)
+		if len(counter) > 0 {
+			xk.AbsorbAny(counter, 1, 0x00)
+		}
+	}
 	return nil
 }
 
@@ -159,8 +179,7 @@ func (xk *Xoodyak) Down(Xi []byte, Cd byte) {
 // TODO Get rid of the error output
 func (xk *Xoodyak) Up(Cu byte, Yilen uint) ([]byte, error) {
 	if xk.Mode != Hash {
-		// TODO Add a byte for crypt mode
-		return []byte{}, nil
+		xk.Instance.State.XorByte(Cu, f_bPrime-1)
 	}
 	xk.Instance.Permutation()
 	if Yilen == 0 {
@@ -170,6 +189,30 @@ func (xk *Xoodyak) Up(Cu byte, Yilen uint) ([]byte, error) {
 	return tmp[:Yilen], nil
 
 }
-func (xk *Xoodyak) Crypt() error {
-	return nil
+func (xk *Xoodyak) Crypt(msg []byte, cm CryptMode) ([]byte, error) {
+	cuTmp := CryptCuInit
+	processed := 0
+	remaining := len(msg)
+	cryptLen := XoodyakRkout
+	out := []byte{}
+	for {
+		if remaining < cryptLen {
+			cryptLen = remaining
+		}
+		xk.Up(cuTmp, 0)
+		xorBytes, _ := xk.Instance.XorExtractBytes(msg[processed : processed+cryptLen])
+		if cm == Encrypting {
+			xk.Down(msg[processed:processed+cryptLen], CryptCd)
+		} else {
+			xk.Down(xorBytes, CryptCd)
+		}
+		out = append(out, xorBytes...)
+		cuTmp = CryptCuMain
+		remaining -= cryptLen
+		processed += cryptLen
+		if remaining <= 0 {
+			break
+		}
+	}
+	return out, nil
 }

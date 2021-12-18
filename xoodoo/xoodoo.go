@@ -69,6 +69,28 @@ func (xds *XooDooState) XorStateBytes(in []byte) {
 	xds[11] ^= (binary.LittleEndian.Uint32(in[44:48]))
 }
 
+func (xds *XooDooState) XorByte(x byte, offset int) error {
+	if offset < 0 || offset >= 48 {
+		return fmt.Errorf("xor byte offset out of range:%d", offset)
+	}
+	xInt := uint32(x) << (8 * (offset % 4))
+	xds[(offset >> 2)] ^= xInt
+	return nil
+}
+
+func (xds *XooDoo) XorExtractBytes(x []byte) ([]byte, error) {
+	size := len(x)
+	if size <= 0 || size > 48 {
+		return nil, fmt.Errorf("xor and extract bytes size out of range:%d", size)
+	}
+	out := make([]byte, size)
+	stateBytes := xds.Bytes()
+	for i := 0; i < size; i++ {
+		out[i] = stateBytes[i] ^ x[i]
+	}
+	return out, nil
+}
+
 func (xds *XooDooState) UnmarshalBinary(data []byte) error {
 	if len(data) != 48 {
 		return fmt.Errorf("input data (%d bytes) != xoodoo state size (48 bytes)", len(data))
