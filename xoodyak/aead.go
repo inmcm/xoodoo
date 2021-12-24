@@ -1,11 +1,20 @@
 package xoodyak
 
 import (
-	"bytes"
 	"crypto/cipher"
+	"crypto/subtle"
+	"errors"
+	"fmt"
+
+	"github.com/inmcm/xoodoo/xoodoo"
 )
 
-func cryptoAEADEncrypt(in, key, id, ad []byte) (ct, tag []byte, err error) {
+const (
+	tagLen   = 16
+	nonceLen = 16
+)
+
+func CryptoEncryptAEAD(in, key, id, ad []byte) (ct, tag []byte, err error) {
 	newXd, err := Instantiate(key, id, nil)
 	if err != nil {
 		return []byte{}, []byte{}, err
@@ -15,14 +24,11 @@ func cryptoAEADEncrypt(in, key, id, ad []byte) (ct, tag []byte, err error) {
 	if err != nil {
 		return []byte{}, []byte{}, err
 	}
-	tag, err = newXd.Squeeze(16)
-	if err != nil {
-		return []byte{}, []byte{}, err
-	}
+	tag = newXd.Squeeze(tagLen)
 	return ct, tag, nil
 }
 
-func cryptoAEADDecrypt(in, key, id, ad, tag []byte) (pt []byte, valid bool, err error) {
+func CryptoDecryptAEAD(in, key, id, ad, tag []byte) (pt []byte, valid bool, err error) {
 	newXd, err := Instantiate(key, id, nil)
 	if err != nil {
 		return []byte{}, false, err
@@ -32,13 +38,11 @@ func cryptoAEADDecrypt(in, key, id, ad, tag []byte) (pt []byte, valid bool, err 
 	if err != nil {
 		return []byte{}, false, err
 	}
-	calculatedTag, err := newXd.Squeeze(16)
-	if err != nil {
-		return []byte{}, false, err
-	}
-	valid = false
-	if bytes.Equal(calculatedTag, tag) {
-		valid = true
+	calculatedTag := newXd.Squeeze(tagLen)
+	valid = true
+	if subtle.ConstantTimeCompare(calculatedTag, tag) != 1 {
+		valid = false
+		pt = []byte{}
 	}
 	return pt, valid, nil
 }

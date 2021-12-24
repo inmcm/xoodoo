@@ -58,12 +58,12 @@ var cryptoAEADTestTable = []struct {
 
 func TestCryptoAEAD(t *testing.T) {
 	for _, tt := range cryptoAEADTestTable {
-		gotCt, gotTag, gotErr := cryptoAEADEncrypt(tt.plaintext, tt.key, tt.nonce, tt.ad)
+		gotCt, gotTag, gotErr := CryptoEncryptAEAD(tt.plaintext, tt.key, tt.nonce, tt.ad)
 		assert.Equal(t, tt.ciphertext, gotCt)
 		assert.Equal(t, tt.tag, gotTag)
 		assert.Equal(t, tt.encryptErr, gotErr)
 
-		gotPt, gotValid, gotErr := cryptoAEADDecrypt(tt.ciphertext, tt.key, tt.nonce, tt.ad, tt.tag)
+		gotPt, gotValid, gotErr := CryptoDecryptAEAD(tt.ciphertext, tt.key, tt.nonce, tt.ad, tt.tag)
 		assert.Equal(t, tt.plaintext, gotPt)
 		assert.Equal(t, tt.valid, gotValid)
 		assert.Equal(t, tt.decryptErr, gotErr)
@@ -110,8 +110,8 @@ var cryptoAEADTestTableTagFails = []struct {
 
 func TestCryptoAEADTagFail(t *testing.T) {
 	for _, tt := range cryptoAEADTestTableTagFails {
-		gotPt, gotValid, gotErr := cryptoAEADDecrypt(tt.ciphertext, tt.key, tt.nonce, tt.ad, tt.tag)
-		assert.Equal(t, tt.plaintext, gotPt)
+		gotPt, gotValid, gotErr := CryptoDecryptAEAD(tt.ciphertext, tt.key, tt.nonce, tt.ad, tt.tag)
+		assert.Equal(t, []byte{}, gotPt)
 		assert.Equal(t, false, gotValid)
 		assert.Equal(t, nil, gotErr)
 	}
@@ -173,12 +173,12 @@ func TestCryptoAEADOfficalKAT(t *testing.T) {
 		cipherTextBytes := combinedCtBytes[0 : combinedLength-16]
 		tagBytes := combinedCtBytes[combinedLength-16 : combinedLength]
 
-		gotCt, gotTag, gotErr := cryptoAEADEncrypt(plainTextBytes, keyBytes, nonceBytes, adBytes)
+		gotCt, gotTag, gotErr := CryptoEncryptAEAD(plainTextBytes, keyBytes, nonceBytes, adBytes)
 		assert.Equal(t, cipherTextBytes, gotCt)
 		assert.Equal(t, tagBytes, gotTag)
 		assert.NoError(t, gotErr)
 
-		gotPt, gotValid, gotErr := cryptoAEADDecrypt(cipherTextBytes, keyBytes, nonceBytes, adBytes, tagBytes)
+		gotPt, gotValid, gotErr := CryptoDecryptAEAD(cipherTextBytes, keyBytes, nonceBytes, adBytes, tagBytes)
 		assert.Equal(t, plainTextBytes, gotPt)
 		assert.Equal(t, true, gotValid)
 		assert.NoError(t, gotErr)

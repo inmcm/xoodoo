@@ -17,24 +17,24 @@ func cryptoHash(in []byte, hLen uint) ([]byte, error) {
 	if err != nil {
 		return []byte{}, err
 	}
-
-	output, err := newXd.Squeeze(cryptoHashBytes)
-	if err != nil {
-		return []byte{}, err
-	}
+	output := newXd.Squeeze(hLen)
 	return output, nil
 }
 
+// HashXoodyak calculates a 32-byte hash on a provided slice of bytes.
+// The output is compatiable with the Xoodyak LWC definition
 func HashXoodyak(in []byte) ([]byte, error) {
 	return cryptoHash(in, cryptoHashBytes)
 }
 
+// HashXoodyak calculates a cryptographic hash of arbitrary length on a provided slice of bytes
 func HashXoodyakLen(in []byte, hLen uint) ([]byte, error) {
 	return cryptoHash(in, hLen)
 }
 
 /* Generic Hash Function Support */
-// digest represents the partial evaluation of a checksum.
+
+// digest represents the partial evaluation of a Xoodyak hash
 type digest struct {
 	xk       *Xoodyak
 	x        [16]byte
@@ -42,13 +42,17 @@ type digest struct {
 	absorbCd uint8
 }
 
-func NewXoodyak() hash.Hash {
+// NewXoodyakAEAD returns a initialized Xoodyak digest object compatiable
+// with the stdlib Hash inteface
+func NewXoodyakHash() hash.Hash {
 	d := &digest{absorbCd: AbsorbCdInit}
 	xk, _ := Instantiate([]byte{}, []byte{}, []byte{})
 	d.xk = xk
 	return d
 }
 
+// Write adds more data to the running hash.
+// It never returns an error.
 func (d *digest) Write(p []byte) (nn int, err error) {
 	nn = len(p)
 	if d.nx > 0 {
@@ -74,7 +78,10 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 	return
 }
 
-func (d *digest) Sum(in []byte) []byte {
+// Sum appends the current hash to b and returns the resulting slice.
+// Sum will finalize the aborb sequence and switch to squeezing bytes from the
+// embedded Xoodoo state
+func (d *digest) Sum(b []byte) []byte {
 
 	if d.nx > 0 {
 		d.xk.AbsorbBlock(d.x[:d.nx], d.xk.AbsorbSize, d.absorbCd)
@@ -85,8 +92,8 @@ func (d *digest) Sum(in []byte) []byte {
 		d.xk.AbsorbBlock([]byte{}, d.xk.AbsorbSize, d.absorbCd)
 	}
 
-	hash, _ := d.xk.Squeeze(cryptoHashBytes)
-	return append(in, hash[:]...)
+	hash := d.xk.Squeeze(cryptoHashBytes)
+	return append(b, hash[:]...)
 }
 
 // Reset resets the Hash to its initial state.

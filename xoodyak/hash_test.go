@@ -81,7 +81,7 @@ func TestCryptoHashOfficalKAT(t *testing.T) {
 func TestXoodyakHashMode(t *testing.T) {
 	for _, tt := range cryptoHashBasicTestTable {
 		rd := bytes.NewBuffer(tt.input)
-		newXk := NewXoodyak()
+		newXk := NewXoodyakHash()
 		gotWritten, err := io.Copy(newXk, rd)
 		assert.Equal(t, int64(len(tt.input)), gotWritten)
 		assert.NoError(t, err)
@@ -95,7 +95,7 @@ func TestXoodyakHashKATFile(t *testing.T) {
 	kat, err := os.Open("LWC_HASH_KAT_256.txt")
 	assert.NoError(t, err)
 	defer kat.Close()
-	newXk := NewXoodyak()
+	newXk := NewXoodyakHash()
 	io.Copy(newXk, kat)
 	gotHash := newXk.Sum(nil)
 	assert.Equal(t, hashKATfile, gotHash)
@@ -103,7 +103,7 @@ func TestXoodyakHashKATFile(t *testing.T) {
 
 func TestXoodyakHashWrite(t *testing.T) {
 
-	newXk := NewXoodyak()
+	newXk := NewXoodyakHash()
 	bytes1 := make([]byte, 16)
 	bytes2 := make([]byte, 8)
 	bytes3 := make([]byte, 33)

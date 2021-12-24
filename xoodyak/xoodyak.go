@@ -8,7 +8,6 @@ import (
 )
 
 const (
-	f_bPrime             = 48
 	hashSize             = 16
 	XoodyakRkin          = 44
 	XoodyakRkout         = 24
@@ -52,6 +51,9 @@ type Xoodyak struct {
 }
 
 // Standard Xoodyak Interfactes
+
+// Instantiate generate a new Xoodoo object initialized for hashing or
+// keyed operations
 func Instantiate(key, id, counter []byte) (*Xoodyak, error) {
 	newXK := Xoodyak{}
 	newXK.Instance, _ = xoodoo.NewXooDoo(xoodoo.MaxRounds, [48]byte{})
@@ -69,26 +71,32 @@ func (xk *Xoodyak) Absorb(x []byte) error {
 	return xk.AbsorbAny(x, xk.AbsorbSize, AbsorbCdInit)
 }
 func (xk *Xoodyak) Encrypt(pt []byte) ([]byte, error) {
-	return xk.Crypt(pt, Encrypting)
+	if xk.Mode != Keyed {
+		return []byte{}, errors.New("encrypt only available in keyed mode")
+	}
+	return xk.Crypt(pt, Encrypting), nil
 }
 func (xk *Xoodyak) Decrypt(ct []byte) ([]byte, error) {
-	return xk.Crypt(ct, Decrypting)
+	if xk.Mode != Keyed {
+		return []byte{}, errors.New("decrypt only available in keyed mode")
+	}
+	return xk.Crypt(ct, Decrypting), nil
 }
-func (xk *Xoodyak) Squeeze(outLen uint) ([]byte, error) {
+func (xk *Xoodyak) Squeeze(outLen uint) []byte {
 	return xk.SqueezeAny(outLen, SqueezeCuInit)
 }
 func (xk *Xoodyak) SqueezeKey(keyLen uint) ([]byte, error) {
 	if xk.Mode != Keyed {
 		return []byte{}, errors.New("squeeze key only available in keyed mode")
 	}
-	return xk.SqueezeAny(keyLen, 0x20)
+	return xk.SqueezeAny(keyLen, 0x20), nil
 }
 
 func (xk *Xoodyak) Ratchet() error {
 	if xk.Mode != Keyed {
 		return errors.New("ratchet only available in keyed mode")
 	}
-	ratchetSqueeze, _ := xk.SqueezeAny(XoodyakRatchet, RatchetCu)
+	ratchetSqueeze := xk.SqueezeAny(XoodyakRatchet, RatchetCu)
 	xk.AbsorbAny(ratchetSqueeze, xk.AbsorbSize, AbsorbCdMain)
 	return nil
 }
@@ -143,12 +151,12 @@ func (xk *Xoodyak) AbsorbKey(key, id, counter []byte) error {
 	return nil
 }
 
-func (xk *Xoodyak) SqueezeAny(YLen uint, Cu uint8) ([]byte, error) {
+func (xk *Xoodyak) SqueezeAny(YLen uint, Cu uint8) []byte {
 	squeezeLen := xk.SqueezeSize
 	if YLen < squeezeLen {
 		squeezeLen = YLen
 	}
-	output, _ := xk.Up(Cu, squeezeLen)
+	output := xk.Up(Cu, squeezeLen)
 	var remaining uint = YLen - squeezeLen
 
 	for remaining > 0 {
@@ -156,19 +164,21 @@ func (xk *Xoodyak) SqueezeAny(YLen uint, Cu uint8) ([]byte, error) {
 		if remaining < squeezeLen {
 			squeezeLen = remaining
 		}
-		tmp, _ := xk.Up(0, squeezeLen)
+		tmp := xk.Up(0, squeezeLen)
 		output = append(output, tmp...)
 		remaining -= squeezeLen
 	}
-	return output, nil
+	return output
 }
 
+// Down injects the provided slice of bytes into the provided Xoodoo
+// state via xor with the existing state
 func (xk *Xoodyak) Down(Xi []byte, Cd byte) {
 	cd1 := Cd
 	if xk.Mode == Hash {
 		cd1 &= 0x01
 	}
-	fill := make([]byte, f_bPrime)
+	fill := make([]byte, xoodoo.StateSizeBytes)
 	copy(fill, Xi)
 	fill[len(Xi)] = 0x01
 	fill[len(fill)-1] = cd1
@@ -176,20 +186,24 @@ func (xk *Xoodyak) Down(Xi []byte, Cd byte) {
 	xk.Phase = Down
 }
 
-// TODO Get rid of the error output
-func (xk *Xoodyak) Up(Cu byte, Yilen uint) ([]byte, error) {
+// Up applies the Xoodoo permutation to the Xoodoo state and returns
+// the requested number of bytes
+func (xk *Xoodyak) Up(Cu byte, Yilen uint) []byte {
+	if Yilen > xoodoo.StateSizeBytes {
+		panic(fmt.Errorf("requested number of bytes (%d) larger than Xoodoo state", Yilen))
+	}
 	if xk.Mode != Hash {
-		xk.Instance.State.XorByte(Cu, f_bPrime-1)
+		xk.Instance.State.XorByte(Cu, xoodoo.StateSizeBytes-1)
 	}
 	xk.Instance.Permutation()
 	if Yilen == 0 {
-		return []byte{}, nil
+		return []byte{}
 	}
 	tmp := xk.Instance.Bytes()
-	return tmp[:Yilen], nil
+	return tmp[:Yilen]
 
 }
-func (xk *Xoodyak) Crypt(msg []byte, cm CryptMode) ([]byte, error) {
+func (xk *Xoodyak) Crypt(msg []byte, cm CryptMode) []byte {
 	cuTmp := CryptCuInit
 	processed := 0
 	remaining := len(msg)
@@ -214,5 +228,5 @@ func (xk *Xoodyak) Crypt(msg []byte, cm CryptMode) ([]byte, error) {
 			break
 		}
 	}
-	return out, nil
+	return out
 }
