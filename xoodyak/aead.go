@@ -47,25 +47,30 @@ func CryptoDecryptAEAD(in, key, id, ad, tag []byte) (pt []byte, valid bool, err 
 	return pt, valid, nil
 }
 
-type aead struct {
-	cipher    cipher.Block
-	nonceSize int
-	tagSize   int
+type xoodyakAEAD struct {
+	key []byte
 }
 
-func NewXoodyakAEAD(cipher cipher.Block) (cipher.AEAD, error) {
-	newAEAD := aead{}
+var errOpen = errors.New("xoodyak: message authentication failed")
+
+// NewXoodyakAEAD accepts a set of key bytes and returns object compatiable with
+// the stdlib crypto/cipher AEAD interface
+func NewXoodyakAEAD(key []byte) (cipher.AEAD, error) {
+	if len(key) == 0 || len(key) >= xoodoo.StateSizeBytes {
+		return nil, fmt.Errorf("key size (%d) out of range", len(key))
+	}
+	newAEAD := xoodyakAEAD{key: key}
 	return &newAEAD, nil
 }
 
-func (a *aead) NonceSize() int {
-	return 0
+func (a *xoodyakAEAD) NonceSize() int {
+	return nonceLen
 }
 
 // Overhead returns the maximum difference between the lengths of a
 // plaintext and its ciphertext.
-func (a *aead) Overhead() int {
-	return 0
+func (a *xoodyakAEAD) Overhead() int {
+	return tagLen
 }
 
 // Seal encrypts and authenticates plaintext, authenticates the
@@ -75,8 +80,18 @@ func (a *aead) Overhead() int {
 //
 // To reuse plaintext's storage for the encrypted output, use plaintext[:0]
 // as dst. Otherwise, the remaining capacity of dst must not overlap plaintext.
-func (a *aead) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
-	return []byte{}
+func (a *xoodyakAEAD) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
+	if len(nonce) != nonceLen {
+		panic("xoodyak: incorrect nonce length given")
+	}
+
+	ct, tag, err := CryptoEncryptAEAD(plaintext, a.key, nonce, additionalData)
+	if err != nil {
+		panic(err)
+	}
+	output := append(dst, ct...)
+	output = append(output, tag...)
+	return output
 }
 
 // Open decrypts and authenticates ciphertext, authenticates the
@@ -90,6 +105,16 @@ func (a *aead) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
 //
 // Even if the function fails, the contents of dst, up to its capacity,
 // may be overwritten.
-func (a *aead) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, error) {
-	return []byte{}, nil
+func (a *xoodyakAEAD) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, error) {
+	tag := ciphertext[len(ciphertext)-tagLen:]
+	pt, valid, err := CryptoDecryptAEAD(ciphertext[:len(ciphertext)-tagLen], a.key, nonce, additionalData, tag)
+	if err != nil {
+		return []byte{}, err
+	}
+	if !valid {
+		return []byte{}, errOpen
+	}
+	output := append(dst, pt...)
+	output = append(output, tag...)
+	return output, nil
 }

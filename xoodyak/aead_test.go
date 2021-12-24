@@ -188,3 +188,19 @@ func TestCryptoAEADOfficalKAT(t *testing.T) {
 		assert.NoError(t, err)
 	}
 }
+
+func TestStandardAEADInteface(t *testing.T) {
+	for _, tt := range cryptoAEADTestTable {
+		gotAEAD, gotErr := NewXoodyakAEAD(tt.key)
+		assert.NoError(t, gotErr)
+
+		gotCiphertext := gotAEAD.Seal(nil, tt.nonce, tt.plaintext, tt.ad)
+		fullCipherText := append(tt.ciphertext, tt.tag...)
+		assert.Equal(t, fullCipherText, gotCiphertext)
+
+		gotPlaintext, gotErr := gotAEAD.Open(nil, tt.nonce, fullCipherText, tt.ad)
+		assert.NoError(t, gotErr)
+		assert.Equal(t, tt.plaintext, gotPlaintext[:len(gotPlaintext)-tagLen])
+
+	}
+}
