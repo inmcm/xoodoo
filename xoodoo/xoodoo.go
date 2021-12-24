@@ -10,11 +10,15 @@ const (
 	// MaxRounds is current ceiling on how many iterations of Xoodoo can be done in the permutation
 	// function
 	MaxRounds = 12
+	// StateSizeBytes describes the Xoodoo object in term of the number of bytes it is made up of
+	StateSizeBytes = 48
+	// StateSizeBytes describes the Xoodoo object in term of the number of 32-bit unsigned ints it is made up of
+	StateSizeWords = 12
 )
 
 var (
 	// RoundConstants is the sequence of 32-bit constants applied in each round of Xoodoo
-	RoundConstants = [12]uint32{
+	RoundConstants = [StateSizeWords]uint32{
 		0x00000058,
 		0x00000038,
 		0x000003C0,
@@ -30,7 +34,7 @@ var (
 	}
 )
 
-type XooDooState [12]uint32
+type XooDooState [StateSizeWords]uint32
 
 type XooDoo struct {
 	State  XooDooState
@@ -70,7 +74,7 @@ func (xds *XooDooState) XorStateBytes(in []byte) {
 }
 
 func (xds *XooDooState) XorByte(x byte, offset int) error {
-	if offset < 0 || offset >= 48 {
+	if offset < 0 || offset >= StateSizeBytes {
 		return fmt.Errorf("xor byte offset out of range:%d", offset)
 	}
 	xInt := uint32(x) << (8 * (offset % 4))
@@ -80,7 +84,7 @@ func (xds *XooDooState) XorByte(x byte, offset int) error {
 
 func (xds *XooDoo) XorExtractBytes(x []byte) ([]byte, error) {
 	size := len(x)
-	if size <= 0 || size > 48 {
+	if size <= 0 || size > StateSizeBytes {
 		return nil, fmt.Errorf("xor and extract bytes size out of range:%d", size)
 	}
 	out := make([]byte, size)
@@ -92,8 +96,8 @@ func (xds *XooDoo) XorExtractBytes(x []byte) ([]byte, error) {
 }
 
 func (xds *XooDooState) UnmarshalBinary(data []byte) error {
-	if len(data) != 48 {
-		return fmt.Errorf("input data (%d bytes) != xoodoo state size (48 bytes)", len(data))
+	if len(data) != StateSizeBytes {
+		return fmt.Errorf("input data (%d bytes) != xoodoo state size (%d bytes)", len(data), StateSizeBytes)
 	}
 	xds[0] = (binary.LittleEndian.Uint32(data[0:4]))
 	xds[1] = (binary.LittleEndian.Uint32(data[4:8]))
@@ -111,7 +115,7 @@ func (xds *XooDooState) UnmarshalBinary(data []byte) error {
 }
 
 func (xds *XooDooState) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, 48)
+	data = make([]byte, StateSizeBytes)
 	binary.LittleEndian.PutUint32(data[0:4], xds[0])
 	binary.LittleEndian.PutUint32(data[4:8], xds[1])
 	binary.LittleEndian.PutUint32(data[8:12], xds[2])
@@ -127,7 +131,7 @@ func (xds *XooDooState) MarshalBinary() (data []byte, err error) {
 	return data, nil
 }
 
-func NewXooDoo(rounds int, state [48]byte) (*XooDoo, error) {
+func NewXooDoo(rounds int, state [StateSizeBytes]byte) (*XooDoo, error) {
 	var new XooDoo
 	new.rounds = rounds
 	if rounds > len(RoundConstants) {
