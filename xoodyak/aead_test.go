@@ -71,6 +71,27 @@ func TestCryptoAEAD(t *testing.T) {
 	}
 }
 
+func BenchmarkEncryptAEAD(b *testing.B) {
+	plaintext := make([]byte, 1024)
+	key := make([]byte, 16)
+	nonce := make([]byte, 16)
+	ad := make([]byte, 64)
+	for n := 0; n < b.N; n++ {
+		CryptoEncryptAEAD(plaintext, key, nonce, ad)
+	}
+}
+
+func BenchmarkDecryptAEAD(b *testing.B) {
+	plaintext := make([]byte, 1024)
+	key := make([]byte, 16)
+	nonce := make([]byte, 16)
+	ad := make([]byte, 64)
+	tag := []byte{0x7c, 0xff, 0x3f, 0x8d, 0x8d, 0x79, 0xcf, 0x00, 0xa2, 0xb3, 0xdc, 0x40, 0xfd, 0x82, 0x0f, 0xa6}
+	for n := 0; n < b.N; n++ {
+		CryptoDecryptAEAD(plaintext, key, nonce, ad, tag)
+	}
+}
+
 var cryptoAEADTestTableTagFails = []struct {
 	plaintext  []byte
 	key        []byte
