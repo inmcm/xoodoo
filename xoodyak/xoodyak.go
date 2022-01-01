@@ -9,9 +9,9 @@ import (
 
 const (
 	hashSize             = 16
-	XoodyakRkin          = 44
-	XoodyakRkout         = 24
-	XoodyakRatchet       = 16
+	xoodyakRkIn          = 44
+	xoodyakRkOut         = 24
+	xoodyakRatchet       = 16
 	AbsorbCdInit   uint8 = 0x03
 	AbsorbCdMain   uint8 = 0x00
 	SqueezeCuInit  uint8 = 0x40
@@ -21,6 +21,8 @@ const (
 	RatchetCu      uint8 = 0x10
 )
 
+// CyclistMode defines if a Xoodyak instance should be running in hashing mode or encryption (keyed)
+// modes
 type CyclistMode int
 
 const (
@@ -28,6 +30,8 @@ const (
 	Keyed
 )
 
+// CyclistPhase defines if a Xoodyak instance should perform the Up or Down method in the current
+// Cyclist iteration
 type CyclistPhase int
 
 const (
@@ -35,6 +39,8 @@ const (
 	Up
 )
 
+// CryptMode defines if a Xoodyak instance (already running in keyed mode) is encrypting or decrypting
+// provided message data
 type CryptMode int
 
 const (
@@ -42,6 +48,9 @@ const (
 	Decrypting
 )
 
+// Xoodyak is a cryptographic object that allows execution of the Cyclist operating mode on the
+// Xoodoo permutation primitive. Xoodyak allows for construction of a variety of hashing, encryption
+// and authentication schemes through assembly of its various operating methods
 type Xoodyak struct {
 	Instance    *xoodoo.XooDoo
 	Mode        CyclistMode
@@ -50,11 +59,11 @@ type Xoodyak struct {
 	SqueezeSize uint
 }
 
-// Standard Xoodyak Interfactes
+// Standard Xoodyak Interfaces
 
 // Instantiate generate a new Xoodoo object initialized for hashing or
 // keyed operations
-func Instantiate(key, id, counter []byte) (*Xoodyak, error) {
+func Instantiate(key, id, counter []byte) *Xoodyak {
 	newXK := Xoodyak{}
 	newXK.Instance, _ = xoodoo.NewXooDoo(xoodoo.MaxRounds, [48]byte{})
 	newXK.Mode = Hash
@@ -64,27 +73,39 @@ func Instantiate(key, id, counter []byte) (*Xoodyak, error) {
 	if len(key) != 0 {
 		newXK.AbsorbKey(key, id, counter)
 	}
-	return &newXK, nil
+	return &newXK
 }
 
-func (xk *Xoodyak) Absorb(x []byte) error {
-	return xk.AbsorbAny(x, xk.AbsorbSize, AbsorbCdInit)
+// Absorb ingests a provided message at the rate of the Xoodyak instance's absorption size
+func (xk *Xoodyak) Absorb(x []byte) {
+	xk.AbsorbAny(x, xk.AbsorbSize, AbsorbCdInit)
 }
+
+// Encrypt transforms the provided plaintext message into a ciphertext message of equal size
+// based on the Xoodyak instance provided (key, nonce, counter have already been processed)
 func (xk *Xoodyak) Encrypt(pt []byte) ([]byte, error) {
 	if xk.Mode != Keyed {
 		return []byte{}, errors.New("encrypt only available in keyed mode")
 	}
 	return xk.Crypt(pt, Encrypting), nil
 }
+
+// Decrypt transforms the provided ciphertext message into a plainext message of equal size
+// based on the Xoodyak instance provided (key, nonce, counter have already been processed)
 func (xk *Xoodyak) Decrypt(ct []byte) ([]byte, error) {
 	if xk.Mode != Keyed {
 		return []byte{}, errors.New("decrypt only available in keyed mode")
 	}
 	return xk.Crypt(ct, Decrypting), nil
 }
+
+// Squeeze outputs a provided stream of pseudo-random bytes at the rate of the Xoodyak instance's squeeze
+// size
 func (xk *Xoodyak) Squeeze(outLen uint) []byte {
 	return xk.SqueezeAny(outLen, SqueezeCuInit)
 }
+
+// SqueezeKey can generate a new encryption key from the existing Xoodyak state
 func (xk *Xoodyak) SqueezeKey(keyLen uint) ([]byte, error) {
 	if xk.Mode != Keyed {
 		return []byte{}, errors.New("squeeze key only available in keyed mode")
@@ -92,16 +113,19 @@ func (xk *Xoodyak) SqueezeKey(keyLen uint) ([]byte, error) {
 	return xk.SqueezeAny(keyLen, 0x20), nil
 }
 
+// Ratchet performs a irreversible transformation of the underlying Xoodoo state to prevent key
+// recovery
 func (xk *Xoodyak) Ratchet() error {
 	if xk.Mode != Keyed {
 		return errors.New("ratchet only available in keyed mode")
 	}
-	ratchetSqueeze := xk.SqueezeAny(XoodyakRatchet, RatchetCu)
+	ratchetSqueeze := xk.SqueezeAny(xoodyakRatchet, RatchetCu)
 	xk.AbsorbAny(ratchetSqueeze, xk.AbsorbSize, AbsorbCdMain)
 	return nil
 }
 
-// AbsorBlock
+// AbsorbBlock ingests a single block of bytes encompassing a single iteration
+// of the Cyclist sequence
 func (xk *Xoodyak) AbsorbBlock(x []byte, r uint, cd uint8) {
 	if xk.Phase != Up {
 		xk.Up(0, 0)
@@ -109,9 +133,9 @@ func (xk *Xoodyak) AbsorbBlock(x []byte, r uint, cd uint8) {
 	xk.Down(x, cd)
 }
 
-// AbosorbAny allow input of any size number of bytes into the
+// AbsorbAny allow input of any size number of bytes into the
 // Xoodoo state
-func (xk *Xoodyak) AbsorbAny(x []byte, r uint, cd uint8) error {
+func (xk *Xoodyak) AbsorbAny(x []byte, r uint, cd uint8) {
 	var cdTmp uint8 = cd
 	var processed uint = 0
 	var remaining uint = uint(len(x))
@@ -131,15 +155,18 @@ func (xk *Xoodyak) AbsorbAny(x []byte, r uint, cd uint8) error {
 			break
 		}
 	}
-	return nil
+	return
 }
+
+// AbsorbKey is special Xoodyak method that ingests provided key, id (nonce), and counter messages
+// into the Xoodoo state enabling the keyed mode of operation typically used for authenticated encryption
 func (xk *Xoodyak) AbsorbKey(key, id, counter []byte) error {
-	if len(key)+len(id) >= XoodyakRkin {
-		return fmt.Errorf("key and nonce lengths too large - key:%d nonce:%d combined:%d max:%d", len(key), len(id), len(key)+len(id), XoodyakRkin-1)
+	if len(key)+len(id) >= xoodyakRkIn {
+		return fmt.Errorf("key and nonce lengths too large - key:%d nonce:%d combined:%d max:%d", len(key), len(id), len(key)+len(id), xoodyakRkIn-1)
 	}
 	xk.Mode = Keyed
-	xk.AbsorbSize = XoodyakRkin
-	xk.SqueezeSize = XoodyakRkout
+	xk.AbsorbSize = xoodyakRkIn
+	xk.SqueezeSize = xoodyakRkOut
 	if len(key) > 0 {
 		keyIDBuf := append(key, id...)
 		keyIDBuf = append(keyIDBuf, byte(len(id)))
@@ -151,6 +178,8 @@ func (xk *Xoodyak) AbsorbKey(key, id, counter []byte) error {
 	return nil
 }
 
+// SqueezeAny allow generation of a message of pseudo-random bytes of any size based on permutating
+// the underlying Xoodoo state
 func (xk *Xoodyak) SqueezeAny(YLen uint, Cu uint8) []byte {
 	squeezeLen := xk.SqueezeSize
 	if YLen < squeezeLen {
@@ -174,6 +203,9 @@ func (xk *Xoodyak) SqueezeAny(YLen uint, Cu uint8) []byte {
 // Down injects the provided slice of bytes into the provided Xoodoo
 // state via xor with the existing state
 func (xk *Xoodyak) Down(Xi []byte, Cd byte) {
+	if len(Xi) > xoodoo.StateSizeBytes {
+		panic(fmt.Errorf("input slice size [%d] excceeds Xoodoo state size [%d]", len(Xi), xoodoo.StateSizeBytes))
+	}
 	cd1 := Cd
 	if xk.Mode == Hash {
 		cd1 &= 0x01
@@ -190,7 +222,7 @@ func (xk *Xoodyak) Down(Xi []byte, Cd byte) {
 // the requested number of bytes
 func (xk *Xoodyak) Up(Cu byte, Yilen uint) []byte {
 	if Yilen > xoodoo.StateSizeBytes {
-		panic(fmt.Errorf("requested number of bytes (%d) larger than Xoodoo state", Yilen))
+		panic(fmt.Errorf("requested number of bytes [%d] larger than Xoodoo state size [%d]", Yilen, xoodoo.StateSizeBytes))
 	}
 	if xk.Mode != Hash {
 		xk.Instance.State.XorByte(Cu, xoodoo.StateSizeBytes-1)
@@ -203,11 +235,15 @@ func (xk *Xoodyak) Up(Cu byte, Yilen uint) []byte {
 	return tmp[:Yilen]
 
 }
+
+// Crypt is core encryption function of Xoodyak/Cyclist. It accepts a byte message of arbitrary
+// length and generates either a ciphertext or plaintext based on the mode provided. Encryption or
+// decryption is accomplished via XOR against a keystream generated from the Xoodoo primitive
 func (xk *Xoodyak) Crypt(msg []byte, cm CryptMode) []byte {
 	cuTmp := CryptCuInit
 	processed := 0
 	remaining := len(msg)
-	cryptLen := XoodyakRkout
+	cryptLen := xoodyakRkOut
 	out := []byte{}
 	for {
 		if remaining < cryptLen {

@@ -5,39 +5,45 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
-
-	"github.com/inmcm/xoodoo/xoodoo"
 )
 
 const (
+	keyLen   = 16
 	tagLen   = 16
 	nonceLen = 16
 )
 
+// CryptoEncryptAEAD encrypts a plaintext message given a 16-byte key, 16-bytes nonce, and optional
+// associated metadata bytes. Along with a cipher text, a 16-byte authentication tag is also generated
+// The ciphertext and tag data is compatible with the Xoodyak LWC AEAD  implementation.
 func CryptoEncryptAEAD(in, key, id, ad []byte) (ct, tag []byte, err error) {
-	newXd, err := Instantiate(key, id, nil)
-	if err != nil {
-		return []byte{}, []byte{}, err
+	if len(key) != keyLen {
+		return []byte{}, []byte{}, fmt.Errorf("xoodyak/aead: given key length (%d bytes) incorrect (%d bytes)", len(key), keyLen)
 	}
+	if len(id) != nonceLen {
+		return []byte{}, []byte{}, fmt.Errorf("xoodyak/aead: given nonce length (%d bytes) incorrect (%d bytes)", len(id), nonceLen)
+	}
+	newXd := Instantiate(key, id, nil)
 	newXd.Absorb(ad)
-	ct, err = newXd.Encrypt(in)
-	if err != nil {
-		return []byte{}, []byte{}, err
-	}
+	ct, _ = newXd.Encrypt(in)
 	tag = newXd.Squeeze(tagLen)
 	return ct, tag, nil
 }
 
+// CryptoDecryptAEAD decrypts and authenticates a ciphertext message given a 16-byte key, 16-byte nonce.
+// optional associated metadata bytes, and a 16 byte authentication tag generated at encryption.
+// A plaintext message is only returned if authentication is successful.
+// This decryption process is compatible with the Xoodyak LWC AEAD implementation.
 func CryptoDecryptAEAD(in, key, id, ad, tag []byte) (pt []byte, valid bool, err error) {
-	newXd, err := Instantiate(key, id, nil)
-	if err != nil {
-		return []byte{}, false, err
+	if len(key) != keyLen {
+		return []byte{}, false, fmt.Errorf("xoodyak/aead: given key length (%d bytes) incorrect (%d bytes)", len(key), keyLen)
 	}
+	if len(id) != nonceLen {
+		return []byte{}, false, fmt.Errorf("xoodyak/aead: given nonce length (%d bytes) incorrect (%d bytes)", len(id), nonceLen)
+	}
+	newXd := Instantiate(key, id, nil)
 	newXd.Absorb(ad)
-	pt, err = newXd.Decrypt(in)
-	if err != nil {
-		return []byte{}, false, err
-	}
+	pt, _ = newXd.Decrypt(in)
 	calculatedTag := newXd.Squeeze(tagLen)
 	valid = true
 	if subtle.ConstantTimeCompare(calculatedTag, tag) != 1 {
@@ -51,13 +57,13 @@ type xoodyakAEAD struct {
 	key []byte
 }
 
-var errOpen = errors.New("xoodyak: message authentication failed")
+var errOpen = errors.New("xoodyak/aead: message authentication failed")
 
-// NewXoodyakAEAD accepts a set of key bytes and returns object compatiable with
+// NewXoodyakAEAD accepts a set of key bytes and returns object compatible with
 // the stdlib crypto/cipher AEAD interface
 func NewXoodyakAEAD(key []byte) (cipher.AEAD, error) {
-	if len(key) == 0 || len(key) >= xoodoo.StateSizeBytes {
-		return nil, fmt.Errorf("key size (%d) out of range", len(key))
+	if len(key) != keyLen {
+		return nil, fmt.Errorf("xoodyak/aead: given key length (%d bytes) incorrect (%d bytes)", len(key), keyLen)
 	}
 	newAEAD := xoodyakAEAD{key: key}
 	return &newAEAD, nil
@@ -82,13 +88,10 @@ func (a *xoodyakAEAD) Overhead() int {
 // as dst. Otherwise, the remaining capacity of dst must not overlap plaintext.
 func (a *xoodyakAEAD) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
 	if len(nonce) != nonceLen {
-		panic("xoodyak: incorrect nonce length given")
+		panic(fmt.Sprintf("xoodyak/aead: given nonce length (%d bytes) incorrect (%d bytes)", len(nonce), nonceLen))
 	}
 
-	ct, tag, err := CryptoEncryptAEAD(plaintext, a.key, nonce, additionalData)
-	if err != nil {
-		panic(err)
-	}
+	ct, tag, _ := CryptoEncryptAEAD(plaintext, a.key, nonce, additionalData)
 	output := append(dst, ct...)
 	output = append(output, tag...)
 	return output
@@ -106,11 +109,11 @@ func (a *xoodyakAEAD) Seal(dst, nonce, plaintext, additionalData []byte) []byte 
 // Even if the function fails, the contents of dst, up to its capacity,
 // may be overwritten.
 func (a *xoodyakAEAD) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, error) {
-	tag := ciphertext[len(ciphertext)-tagLen:]
-	pt, valid, err := CryptoDecryptAEAD(ciphertext[:len(ciphertext)-tagLen], a.key, nonce, additionalData, tag)
-	if err != nil {
-		return []byte{}, err
+	if len(nonce) != nonceLen {
+		return []byte{}, fmt.Errorf("xoodyak/aead: given nonce length (%d bytes) incorrect (%d bytes)", len(nonce), nonceLen)
 	}
+	tag := ciphertext[len(ciphertext)-tagLen:]
+	pt, valid, _ := CryptoDecryptAEAD(ciphertext[:len(ciphertext)-tagLen], a.key, nonce, additionalData, tag)
 	if !valid {
 		return []byte{}, errOpen
 	}

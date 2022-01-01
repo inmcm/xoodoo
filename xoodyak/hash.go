@@ -9,25 +9,19 @@ const (
 )
 
 func cryptoHash(in []byte, hLen uint) ([]byte, error) {
-	newXd, err := Instantiate([]byte{}, []byte{}, []byte{})
-	if err != nil {
-		return []byte{}, err
-	}
-	err = newXd.Absorb(in)
-	if err != nil {
-		return []byte{}, err
-	}
+	newXd := Instantiate([]byte{}, []byte{}, []byte{})
+	newXd.Absorb(in)
 	output := newXd.Squeeze(hLen)
 	return output, nil
 }
 
 // HashXoodyak calculates a 32-byte hash on a provided slice of bytes.
-// The output is compatiable with the Xoodyak LWC definition
+// The output is compatible with the Xoodyak LWC definition
 func HashXoodyak(in []byte) ([]byte, error) {
 	return cryptoHash(in, cryptoHashBytes)
 }
 
-// HashXoodyak calculates a cryptographic hash of arbitrary length on a provided slice of bytes
+// HashXoodyakLen calculates a cryptographic hash of arbitrary length on a provided slice of bytes
 func HashXoodyakLen(in []byte, hLen uint) ([]byte, error) {
 	return cryptoHash(in, hLen)
 }
@@ -42,11 +36,11 @@ type digest struct {
 	absorbCd uint8
 }
 
-// NewXoodyakAEAD returns a initialized Xoodyak digest object compatiable
-// with the stdlib Hash inteface
+// NewXoodyakHash returns a initialized Xoodyak digest object compatible
+// with the stdlib Hash interface
 func NewXoodyakHash() hash.Hash {
 	d := &digest{absorbCd: AbsorbCdInit}
-	xk, _ := Instantiate([]byte{}, []byte{}, []byte{})
+	xk := Instantiate([]byte{}, []byte{}, []byte{})
 	d.xk = xk
 	return d
 }
@@ -79,7 +73,7 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 }
 
 // Sum appends the current hash to b and returns the resulting slice.
-// Sum will finalize the aborb sequence and switch to squeezing bytes from the
+// Sum will finalize the absorb sequence and switch to squeezing bytes from the
 // embedded Xoodoo state
 func (d *digest) Sum(b []byte) []byte {
 
@@ -98,7 +92,7 @@ func (d *digest) Sum(b []byte) []byte {
 
 // Reset resets the Hash to its initial state.
 func (d *digest) Reset() {
-	xk, _ := Instantiate([]byte{}, []byte{}, []byte{})
+	xk := Instantiate([]byte{}, []byte{}, []byte{})
 	d.xk = xk
 	d.nx = 0
 	d.absorbCd = AbsorbCdInit

@@ -16,7 +16,6 @@ var xoodyakInstantiationTestTable = []struct {
 	id      []byte
 	counter []byte
 	xk      Xoodyak
-	err     error
 }{
 	// Hash mode intialization
 	{
@@ -32,19 +31,17 @@ var xoodyakInstantiationTestTable = []struct {
 			AbsorbSize:  hashSize,
 			SqueezeSize: hashSize,
 		},
-		err: nil,
 	},
 }
 
 func TestXoodyakCyclistInstantiate(t *testing.T) {
 	for _, tt := range xoodyakInstantiationTestTable {
-		gotXk, gotErr := Instantiate(tt.key, tt.id, tt.counter)
+		gotXk := Instantiate(tt.key, tt.id, tt.counter)
 		assert.Equal(t, tt.xk.Instance.Bytes(), gotXk.Instance.Bytes())
 		assert.Equal(t, tt.xk.Mode, gotXk.Mode)
 		assert.Equal(t, tt.xk.Phase, gotXk.Phase)
 		assert.Equal(t, tt.xk.AbsorbSize, gotXk.AbsorbSize)
 		assert.Equal(t, tt.xk.SqueezeSize, gotXk.SqueezeSize)
-		assert.Equal(t, tt.err, gotErr)
 	}
 }
 
@@ -118,6 +115,20 @@ func TestXoodyakCyclistDown(t *testing.T) {
 		gotBytes := newXk.Instance.Bytes()
 		assert.Equal(t, tt.endState, gotBytes)
 	}
+}
+
+func TestXoodyakCyclistDownPanic(t *testing.T) {
+	var newXd xoodoo.XooDoo
+	var newXk Xoodyak
+	newXk.Instance = &newXd
+	newXk.Mode = Hash
+	newXk.Phase = Down
+	input := make([]byte, 200)
+	downPanic := func() {
+		newXk.Down(input, 0x00)
+	}
+	assert.Panics(t, downPanic)
+
 }
 
 var xoodyakCyclistUpTestTable = []struct {
@@ -197,6 +208,19 @@ func TestXoodyakCyclistUp(t *testing.T) {
 	}
 }
 
+func TestXoodyakCyclistUpPanic(t *testing.T) {
+	var newXd xoodoo.XooDoo
+	var newXk Xoodyak
+	newXk.Instance = &newXd
+	newXk.Mode = Hash
+	newXk.Phase = Down
+	upPanic := func() {
+		newXk.Up(0x80, 200)
+	}
+	assert.Panics(t, upPanic)
+
+}
+
 var xoodyakCyclistAbsorbAnyTestTable = []struct {
 	x     []byte
 	r     uint
@@ -205,7 +229,6 @@ var xoodyakCyclistAbsorbAnyTestTable = []struct {
 	xkIn  Xoodyak
 	xdOut []byte
 	xkOut Xoodyak
-	err   error
 }{
 	{
 		x:    []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F, 0x30},
@@ -223,7 +246,6 @@ var xoodyakCyclistAbsorbAnyTestTable = []struct {
 			Mode:  Hash,
 			Phase: Down,
 		},
-		err: nil,
 	},
 	{
 		x:    []byte{0xFE, 0x61, 0x20, 0xC4, 0x29, 0xA8, 0xBB, 0x7D},
@@ -241,16 +263,13 @@ var xoodyakCyclistAbsorbAnyTestTable = []struct {
 			Mode:  Hash,
 			Phase: Down,
 		},
-		err: nil,
 	},
 }
 
 func TestXoodyakCyclistAbsorbAny(t *testing.T) {
 	for _, tt := range xoodyakCyclistAbsorbAnyTestTable {
 		tt.xkIn.Instance, _ = xoodoo.NewXooDoo(12, tt.xdIn)
-		gotErr := tt.xkIn.AbsorbAny(tt.x, tt.r, tt.cd)
-		assert.Equal(t, tt.err, gotErr)
-		assert.Equal(t, tt.err, gotErr)
+		tt.xkIn.AbsorbAny(tt.x, tt.r, tt.cd)
 		assert.Equal(t, tt.xdOut, tt.xkIn.Instance.Bytes())
 		assert.Equal(t, tt.xkOut.Mode, tt.xkIn.Mode)
 		assert.Equal(t, tt.xkOut.Phase, tt.xkIn.Phase)
@@ -456,8 +475,8 @@ func TestXoodyakRatchet(t *testing.T) {
 		newXK.Instance, _ = xoodoo.NewXooDoo(xoodoo.MaxRounds, tt.initial)
 		newXK.Phase = Up
 		newXK.Mode = Keyed
-		newXK.AbsorbSize = XoodyakRkin
-		newXK.SqueezeSize = XoodyakRkout
+		newXK.AbsorbSize = xoodyakRkIn
+		newXK.SqueezeSize = xoodyakRkOut
 		newXK.Ratchet()
 		assert.Equal(t, tt.final, newXK.Instance.Bytes())
 	}
@@ -468,8 +487,8 @@ func TestXoodyakRatchetWrongMode(t *testing.T) {
 	newXK.Instance, _ = xoodoo.NewXooDoo(xoodoo.MaxRounds, [48]byte{})
 	newXK.Phase = Up
 	newXK.Mode = Hash
-	newXK.AbsorbSize = XoodyakRkin
-	newXK.SqueezeSize = XoodyakRkout
+	newXK.AbsorbSize = xoodyakRkIn
+	newXK.SqueezeSize = xoodyakRkOut
 	gotErr := newXK.Ratchet()
 	assert.Equal(t, errors.New("ratchet only available in keyed mode"), gotErr)
 }
@@ -646,8 +665,8 @@ func TestXoodyakSqueezeKey(t *testing.T) {
 		newXK.Instance, _ = xoodoo.NewXooDoo(xoodoo.MaxRounds, tt.initial)
 		newXK.Phase = Up
 		newXK.Mode = Keyed
-		newXK.AbsorbSize = XoodyakRkin
-		newXK.SqueezeSize = XoodyakRkout
+		newXK.AbsorbSize = xoodyakRkIn
+		newXK.SqueezeSize = xoodyakRkOut
 		gotKey, _ := newXK.SqueezeKey(tt.length)
 		assert.Equal(t, tt.final, gotKey)
 	}
@@ -658,8 +677,8 @@ func TestXoodyakSqueezeKeyWrongMode(t *testing.T) {
 	newXK.Instance, _ = xoodoo.NewXooDoo(xoodoo.MaxRounds, [48]byte{})
 	newXK.Phase = Up
 	newXK.Mode = Hash
-	newXK.AbsorbSize = XoodyakRkin
-	newXK.SqueezeSize = XoodyakRkout
+	newXK.AbsorbSize = xoodyakRkIn
+	newXK.SqueezeSize = xoodyakRkOut
 	gotKey, gotErr := newXK.SqueezeKey(16)
 	assert.Equal(t, errors.New("squeeze key only available in keyed mode"), gotErr)
 	assert.Equal(t, []byte{}, gotKey)
