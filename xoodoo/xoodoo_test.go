@@ -14,7 +14,7 @@ func BenchmarkXoodooPermutation(b *testing.B) {
 	}
 }
 
-var perumtationTestTable = []struct {
+var permutationTestTable = []struct {
 	inBytes  [48]byte
 	rounds   int
 	outBytes []byte
@@ -82,7 +82,7 @@ var perumtationTestTable = []struct {
 }
 
 func TestPermutation(t *testing.T) {
-	for _, tt := range perumtationTestTable {
+	for _, tt := range permutationTestTable {
 		newXD, _ := NewXooDoo(tt.rounds, tt.inBytes)
 		newXD.Permutation()
 		assert.Equal(t, tt.outBytes, newXD.Bytes())
