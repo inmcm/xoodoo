@@ -4,7 +4,31 @@ LWC competition.
 
 
 ## Installation
-
+Install like any Go package:
 ```bash
 go get -u github.com/inmcm/xoodoo
+```
+for versions of Go before 1.16 use:
+```bash
+GO111MODULE=on go get -u github.com/inmcm/xoodoo
+```
+
+## Quickstart
+If you need to use the LWC defined hashing or AEAD operating modes
+
+### Hashing
+```go
+package main
+
+import (
+	"fmt"
+
+	"github.com/inmcm/xoodoo/xoodyak"
+)
+
+func main() {
+	myMsg := []byte("hello xoodoo")
+	myHash := xoodyak.HashXoodyak(myMsg)
+	fmt.Printf("Msg:%s\nHash:%x", myMsg, myHash)
+}
 ```
