@@ -8,21 +8,21 @@ const (
 	cryptoHashBytes = 32
 )
 
-func cryptoHash(in []byte, hLen uint) ([]byte, error) {
+func cryptoHash(in []byte, hLen uint) []byte {
 	newXd := Instantiate([]byte{}, []byte{}, []byte{})
 	newXd.Absorb(in)
 	output := newXd.Squeeze(hLen)
-	return output, nil
+	return output
 }
 
 // HashXoodyak calculates a 32-byte hash on a provided slice of bytes.
 // The output is compatible with the Xoodyak LWC definition
-func HashXoodyak(in []byte) ([]byte, error) {
+func HashXoodyak(in []byte) []byte {
 	return cryptoHash(in, cryptoHashBytes)
 }
 
 // HashXoodyakLen calculates a cryptographic hash of arbitrary length on a provided slice of bytes
-func HashXoodyakLen(in []byte, hLen uint) ([]byte, error) {
+func HashXoodyakLen(in []byte, hLen uint) []byte {
 	return cryptoHash(in, hLen)
 }
 

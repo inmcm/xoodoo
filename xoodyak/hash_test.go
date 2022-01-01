@@ -36,7 +36,7 @@ var cryptoHashBasicTestTable = []struct {
 
 func TestCryptoHashDoHash(t *testing.T) {
 	for _, tt := range cryptoHashBasicTestTable {
-		gotHash, _ := HashXoodyak(tt.input)
+		gotHash := HashXoodyak(tt.input)
 		assert.Equal(t, tt.output, gotHash)
 	}
 }
@@ -68,8 +68,7 @@ func TestCryptoHashOfficialKAT(t *testing.T) {
 		hashBytes, err := hex.DecodeString(hash)
 		assert.NoError(t, err)
 
-		gotHash, err := HashXoodyak(msgBytes)
-		assert.NoError(t, err)
+		gotHash := HashXoodyak(msgBytes)
 		assert.Equal(t, hashBytes, gotHash)
 
 		// Empty Line
@@ -245,7 +244,7 @@ var hashXoodyakLenTestTable = []struct {
 
 func TestHashXoodyakLen(t *testing.T) {
 	for _, tt := range hashXoodyakLenTestTable {
-		gotHash, _ := HashXoodyakLen(tt.in, tt.size)
+		gotHash := HashXoodyakLen(tt.in, tt.size)
 		assert.Equal(t, tt.hash, gotHash)
 	}
 }
