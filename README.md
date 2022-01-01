@@ -14,7 +14,7 @@ GO111MODULE=on go get -u github.com/inmcm/xoodoo
 ```
 
 ## Quickstart
-If you need to use the LWC defined hashing or AEAD operating modes
+If you just need to use the LWC defined Xoodyak hashing or AEAD operating modes, examples are given below. For other uses of this package, please consult the documentation.
 
 ### Hashing
 ```go
@@ -29,6 +29,11 @@ import (
 func main() {
 	myMsg := []byte("hello xoodoo")
 	myHash := xoodyak.HashXoodyak(myMsg)
-	fmt.Printf("Msg:%s\nHash:%x", myMsg, myHash)
+	fmt.Printf("Msg:%s\nHash:%x\n", myMsg, myHash)
 }
+```
+```sh
+% go run main.go
+Msg:hello xoodoo
+Hash:5c9a95363d79b2157cbdfff49dddaf1f20562dc64644f2d28211478537e6b29a
 ```
