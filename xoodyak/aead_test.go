@@ -183,7 +183,7 @@ var cryptoAEADErrorsTestTable = []struct {
 		err:        errors.New("xoodyak/aead: given key length (3 bytes) incorrect (16 bytes)"),
 	},
 	{
-		// Excescive length key
+		// Excessive length key
 		plaintext:  []byte{},
 		key:        []byte{0x00, 0x01, 0x02, 0x03, 0x00, 0x01, 0x02, 0x03, 0x00, 0x01, 0x02, 0x03, 0x00, 0x01, 0x02, 0x03, 0x00, 0x01, 0x02, 0x03},
 		nonce:      []byte{},
@@ -194,7 +194,7 @@ var cryptoAEADErrorsTestTable = []struct {
 		err:        errors.New("xoodyak/aead: given key length (20 bytes) incorrect (16 bytes)"),
 	},
 	{
-		// Correct key length key, zero lenght nonce
+		// Correct key length key, zero length nonce
 		plaintext:  []byte{},
 		key:        []byte{0x00, 0x01, 0x02, 0x03, 0x00, 0x01, 0x02, 0x03, 0x00, 0x01, 0x02, 0x03, 0x00, 0x01, 0x02, 0x03},
 		nonce:      []byte{},
@@ -220,7 +220,7 @@ func TestCryptoAEADErrors(t *testing.T) {
 	}
 }
 
-var cryptoAEADContstructorsErrosTestTable = []struct {
+var cryptoAEADConstructorsErrorsTestTable = []struct {
 	key []byte
 	err error
 }{
@@ -235,21 +235,21 @@ var cryptoAEADContstructorsErrosTestTable = []struct {
 		err: errors.New("xoodyak/aead: given key length (3 bytes) incorrect (16 bytes)"),
 	},
 	{
-		// Excescive length key
+		// Excessive length key
 		key: []byte{0x00, 0x01, 0x02, 0x03, 0x00, 0x01, 0x02, 0x03, 0x00, 0x01, 0x02, 0x03, 0x00, 0x01, 0x02, 0x03, 0x00, 0x01, 0x02, 0x03},
 		err: errors.New("xoodyak/aead: given key length (20 bytes) incorrect (16 bytes)"),
 	},
 }
 
 func TestCryptoAEADConstructorErrors(t *testing.T) {
-	for _, tt := range cryptoAEADContstructorsErrosTestTable {
+	for _, tt := range cryptoAEADConstructorsErrorsTestTable {
 		gotAEAD, gotErr := NewXoodyakAEAD(tt.key)
 		assert.Equal(t, nil, gotAEAD)
 		assert.Equal(t, tt.err, gotErr)
 	}
 }
 
-func TestCryptoAEADOfficalKAT(t *testing.T) {
+func TestCryptoAEADOfficialKAT(t *testing.T) {
 	kat, err := os.Open("LWC_AEAD_KAT_128_128.txt")
 	assert.NoError(t, err)
 	defer kat.Close()
@@ -332,7 +332,7 @@ func TestCryptoAEADOfficalKAT(t *testing.T) {
 	}
 }
 
-func TestStandardAEADInteface(t *testing.T) {
+func TestStandardAEADInterface(t *testing.T) {
 	for _, tt := range cryptoAEADTestTable {
 		gotAEAD, gotErr := NewXoodyakAEAD(tt.key)
 		assert.NoError(t, gotErr)
@@ -381,7 +381,7 @@ var cryptoAEADInterfaceNonceTestTable = []struct {
 		err:   errors.New("xoodyak/aead: given nonce length (3 bytes) incorrect (16 bytes)"),
 	},
 	{
-		// Excescive length nonce
+		// Excessive length nonce
 		nonce: []byte{0x00, 0x01, 0x02, 0x03, 0x00, 0x01, 0x02, 0x03, 0x00, 0x01, 0x02, 0x03, 0x00, 0x01, 0x02, 0x03, 0x00, 0x01, 0x02, 0x03},
 		err:   errors.New("xoodyak/aead: given nonce length (20 bytes) incorrect (16 bytes)"),
 	},
