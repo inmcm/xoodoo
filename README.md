@@ -8,7 +8,7 @@ LWC competition.
 ## Installation
 Install like any Go package:
 ```bash
-go get -u github.com/inmcm/xoodoo
+go get -u github.com/inmcm/xoodoo@latest
 ```
 for versions of Go before 1.16 use:
 ```bash
