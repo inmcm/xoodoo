@@ -55,6 +55,17 @@ var cryptoAEADTestTable = []struct {
 		encryptErr: nil,
 		decryptErr: nil,
 	},
+	{
+		plaintext:  []byte{},
+		key:        []byte{0x0F, 0x0E, 0x0D, 0x0C, 0x0B, 0x0A, 0x09, 0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00},
+		nonce:      []byte{0xF0, 0xE1, 0xD2, 0xC3, 0xB4, 0xA5, 0x96, 0x87, 0x78, 0x69, 0x5A, 0x4B, 0x3C, 0x2D, 0x1E, 0x0F},
+		ad:         []byte{0x33, 0x33, 0xc2, 0xb0, 0x35, 0x39, 0xe2, 0x80, 0x99, 0x33, 0x39, 0x2e, 0x35, 0x31, 0xe2, 0x80, 0xb3, 0x4e, 0x2c, 0x20, 0x37, 0xc2, 0xb0, 0x35, 0x30, 0xe2, 0x80, 0x99, 0x33, 0x33, 0x2e, 0x36, 0x39, 0xe2, 0x80, 0xb3, 0x45},
+		ciphertext: []byte{},
+		tag:        []byte{0x32, 0x4b, 0x91, 0x70, 0x89, 0x7c, 0x51, 0x43, 0x91, 0xd6, 0x24, 0xe4, 0xb1, 0xb2, 0xe8, 0x4e},
+		valid:      true,
+		encryptErr: nil,
+		decryptErr: nil,
+	},
 }
 
 func TestCryptoAEAD(t *testing.T) {
@@ -313,7 +324,7 @@ func TestCryptoAEADOfficalKAT(t *testing.T) {
 
 		gotPlaintext, gotErr := gotAEAD.Open(nil, nonceBytes, combinedCtBytes, adBytes)
 		assert.NoError(t, gotErr)
-		assert.Equal(t, plainTextBytes, gotPlaintext[:len(gotPlaintext)-tagLen])
+		assert.Equal(t, plainTextBytes, gotPlaintext)
 
 		// Empty Line
 		_, _, err = katBuf.ReadLine()
@@ -337,7 +348,7 @@ func TestStandardAEADInteface(t *testing.T) {
 
 		gotPlaintext, gotErr := gotAEAD.Open(nil, tt.nonce, fullCipherText, tt.ad)
 		assert.NoError(t, gotErr)
-		assert.Equal(t, tt.plaintext, gotPlaintext[:len(gotPlaintext)-tagLen])
+		assert.Equal(t, tt.plaintext, gotPlaintext)
 
 	}
 }
@@ -395,4 +406,64 @@ func TestAEADInterfaceNonceErrors(t *testing.T) {
 		assert.EqualError(t, tt.err, gotErr.Error())
 
 	}
+}
+
+func TestAEADInterfaceDstWriting(t *testing.T) {
+	key := make([]byte, 16)
+	nonce := make([]byte, 16)
+	ad := make([]byte, 80)
+	msg := []byte("hello dest")
+	ctDst := []byte("append ciphertext to this")
+	ctDstLen := len(ctDst)
+	ptDst := []byte("append plaintext to this")
+	//ptDstLen := len(ptDst)
+	authCtOutput := []byte{0x51, 0xd4, 0x67, 0x7f, 0x57, 0x14, 0x6, 0x1d, 0x32, 0xc, 0xcc, 0xa9, 0x6d, 0xf2, 0xf3, 0x56, 0x1b, 0x63, 0x8d, 0x32, 0x40, 0xcf, 0x54, 0x25, 0xc1, 0x11}
+	t.Run("Append to Unrelated Data", func(t *testing.T) {
+		appendedCtOutput := append(ctDst, authCtOutput...)
+		gotAEAD, gotErr := NewXoodyakAEAD(key)
+		assert.NoError(t, gotErr)
+		gotCiphertext := gotAEAD.Seal(ctDst, nonce, msg, ad)
+		assert.Equal(t, appendedCtOutput, gotCiphertext)
+		assert.Equal(t, []byte("hello dest"), msg)
+		authCt := gotCiphertext[ctDstLen:]
+		appendedPtOutput := append(ptDst, msg...)
+		gotPlaintext, gotErr := gotAEAD.Open(ptDst, nonce, authCt, ad)
+		assert.NoError(t, gotErr)
+		assert.Equal(t, appendedPtOutput, gotPlaintext)
+		assert.Equal(t, gotCiphertext[ctDstLen:], authCt)
+	})
+
+	t.Run("Overwrite plaintext inputs", func(t *testing.T) {
+		key := make([]byte, 16)
+		nonce := make([]byte, 16)
+		ad := make([]byte, 80)
+		msgBackup := make([]byte, len(msg), 15)
+		copy(msgBackup, msg)
+		gotAEAD, gotErr := NewXoodyakAEAD(key)
+		assert.NoError(t, gotErr)
+		gotCiphertext := gotAEAD.Seal(msgBackup[:0], nonce, msgBackup, ad)
+		assert.Equal(t, authCtOutput[:len(msg)], msgBackup)
+		assert.Equal(t, authCtOutput, gotCiphertext)
+		gotPlaintext, gotErr := gotAEAD.Open(msgBackup[:0], nonce, gotCiphertext, ad)
+		assert.NoError(t, gotErr)
+		assert.Equal(t, msg, msgBackup)
+		assert.Equal(t, msg, gotPlaintext)
+	})
+
+	t.Run("Overwrite other buffer", func(t *testing.T) {
+		key := make([]byte, 16)
+		nonce := make([]byte, 16)
+		ad := make([]byte, 80)
+		otherMsgBuffer := make([]byte, len(msg), 200)
+		gotAEAD, gotErr := NewXoodyakAEAD(key)
+		assert.NoError(t, gotErr)
+		gotCiphertext := gotAEAD.Seal(otherMsgBuffer[:0], nonce, msg, ad)
+		assert.Equal(t, authCtOutput[:len(msg)], otherMsgBuffer)
+		assert.Equal(t, authCtOutput, gotCiphertext)
+		otherMsgBuffer = make([]byte, len(msg))
+		gotPlaintext, gotErr := gotAEAD.Open(otherMsgBuffer[:0], nonce, gotCiphertext, ad)
+		assert.NoError(t, gotErr)
+		assert.Equal(t, msg, otherMsgBuffer)
+		assert.Equal(t, msg, gotPlaintext)
+	})
 }

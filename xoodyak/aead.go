@@ -92,7 +92,13 @@ func (a *xoodyakAEAD) Seal(dst, nonce, plaintext, additionalData []byte) []byte 
 	}
 
 	ct, tag, _ := CryptoEncryptAEAD(plaintext, a.key, nonce, additionalData)
-	output := append(dst, ct...)
+	output := []byte{}
+	if dst != nil {
+		output = dst
+		output = append(output, ct...)
+	} else {
+		output = ct
+	}
 	output = append(output, tag...)
 	return output
 }
@@ -112,12 +118,17 @@ func (a *xoodyakAEAD) Open(dst, nonce, ciphertext, additionalData []byte) ([]byt
 	if len(nonce) != nonceLen {
 		return []byte{}, fmt.Errorf("xoodyak/aead: given nonce length (%d bytes) incorrect (%d bytes)", len(nonce), nonceLen)
 	}
+	if len(ciphertext) < tagLen {
+		return []byte{}, fmt.Errorf("xoodyak/aead: given ciphertext (%d bytes) less than minimum length (%d bytes)", len(ciphertext), tagLen)
+	}
+
 	tag := ciphertext[len(ciphertext)-tagLen:]
 	pt, valid, _ := CryptoDecryptAEAD(ciphertext[:len(ciphertext)-tagLen], a.key, nonce, additionalData, tag)
 	if !valid {
 		return []byte{}, errOpen
 	}
-	output := append(dst, pt...)
-	output = append(output, tag...)
-	return output, nil
+	if dst != nil {
+		return append(dst, pt...), nil
+	}
+	return pt, nil
 }
