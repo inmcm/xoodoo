@@ -1,4 +1,5 @@
-[![Go Reference](https://pkg.go.dev/badge/github.com/inmcm/xoodoo.svg)](https://pkg.go.dev/github.com/inmcm/xoodoo) [![Go Report Card](https://goreportcard.com/badge/github.com/inmcm/xoodoo](https://goreportcard.com/report/github.com/inmcm/xoodoo)
+[![Go Reference](https://pkg.go.dev/badge/github.com/inmcm/xoodoo.svg)](https://pkg.go.dev/github.com/inmcm/xoodoo)
+[![Go Report](https://goreportcard.com/badge/github.com//inmcm/xoodoo)](https://goreportcard.com/badge/github.com//inmcm/xoodoo)
 
 # Xoodoo/Xoodyak
 A pure Go implementation of the [Xoodoo](https://keccak.team/xoodoo.html) permutation used in the [Xoodyak](https://keccak.team/xoodyak.html) cryptographic scheme. Xoodyak implementation supports all specified Cyclist functions described in the [specification](https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/xoodyak-spec-final.pdf). 
