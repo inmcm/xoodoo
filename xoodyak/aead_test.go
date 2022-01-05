@@ -408,6 +408,33 @@ func TestAEADInterfaceNonceErrors(t *testing.T) {
 	}
 }
 
+var ciphertextLengthErrorsTestTable = []struct {
+	size int
+	err  error
+}{
+	{
+		size: 0,
+		err:  errors.New("xoodyak/aead: given ciphertext (0 bytes) less than minimum length (16 bytes)"),
+	},
+	{
+		size: 15,
+		err:  errors.New("xoodyak/aead: given ciphertext (15 bytes) less than minimum length (16 bytes)"),
+	},
+}
+
+func TestAEADInterfaceCiphertextErrors(t *testing.T) {
+	for _, tt := range ciphertextLengthErrorsTestTable {
+		key := make([]byte, 16)
+		gotAEAD, gotErr := NewXoodyakAEAD(key)
+		assert.Equal(t, nil, gotErr)
+		nonce := make([]byte, 16)
+		ciphertext := make([]byte, tt.size)
+		gotPt, gotErr := gotAEAD.Open(nil, nonce, ciphertext, []byte{0xFF})
+		assert.Equal(t, tt.err, gotErr)
+		assert.Equal(t, []byte{}, gotPt)
+	}
+}
+
 func TestAEADInterfaceDstWriting(t *testing.T) {
 	key := make([]byte, 16)
 	nonce := make([]byte, 16)
