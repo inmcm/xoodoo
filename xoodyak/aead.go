@@ -92,12 +92,10 @@ func (a *xoodyakAEAD) Seal(dst, nonce, plaintext, additionalData []byte) []byte 
 	}
 
 	ct, tag, _ := CryptoEncryptAEAD(plaintext, a.key, nonce, additionalData)
-	output := []byte{}
+	output := ct
 	if dst != nil {
 		output = dst
 		output = append(output, ct...)
-	} else {
-		output = ct
 	}
 	output = append(output, tag...)
 	return output
