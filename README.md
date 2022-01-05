@@ -4,9 +4,8 @@
 # Xoodoo/Xoodyak
 A pure Go implementation of the [Xoodyak](https://keccak.team/xoodyak.html) cryptographic scheme utilizing the [Xoodoo](https://keccak.team/xoodoo.html) permutation function. The Xoodyak implementation supports all specified Cyclist mode functions described in the [specification](https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/xoodyak-spec-final.pdf). 
 
-In addition, higher level primitives are provided to support hashing and authenticated encryption modes described in [NIST's Lightweight Cryptography](https://csrc.nist.gov/Projects/lightweight-cryptography/finalists) competition. Go standard library interfaces are also support where applicable. Test vectors are copied from or otherwise generated from the [reference C code](https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-submissions/xoodyak.zip) provided to NIST as part of the
+In addition, higher level primitives are provided to support the hashing and authenticated encryption modes described in [NIST's LightWeight Cryptography (LWC)](https://csrc.nist.gov/Projects/lightweight-cryptography/finalists) competition. Go standard library interfaces are also supported where applicable. Test vectors are taken from or otherwise generated from the [reference C code](https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-submissions/xoodyak.zip) provided to NIST as part of the
 LWC competition.
-
 
 ## Installation
 Install like any Go package:
@@ -19,7 +18,7 @@ GO111MODULE=on go get -u github.com/inmcm/xoodoo
 ```
 
 ## Quickstart
-If you just need to use the LWC defined Xoodyak hashing or AEAD operating modes, examples are given below. For other uses of this package, please consult the documentation.
+If you need just the LWC defined Xoodyak hashing or AEAD operating modes, examples are given below. For other uses of this package, please consult the documentation.
 
 ### Hashing
 Xoodyak provides a default hashing function that will output a 256-bit digest provided an arbitrary number of input bytes.
@@ -70,7 +69,7 @@ Msg:hello xoodoo
 Hash:5c9a95363d79b2157cbdfff49dddaf1f20562dc64644f2d28211478537e6b29a
 ```
 ### Authenticated Encryption
-Xoodyak provides an Authenticated Encryption with Associated Data (AEAD) mode that requires a 128-bit key and 128-bit nonce to encrypt a message of arbitrary length. An optional number of associated data bytes may also be provided.
+Xoodyak provides an Authenticated Encryption with Associated Data (AEAD) mode that requires a 128-bit key and 128-bit nonce to encrypt a message of arbitrary length. An optional number of associated data bytes may also be provided. A 128-bit authentication tag is also generated at encrypt time that can be used during decryption to verify the integrity of the resulting plaintext.
 ```go
 package main
 
@@ -172,3 +171,9 @@ func main() {
 	fmt.Println(output.String())
 }
 ```
+
+## Caveats
+While security was top of mind during development, this implementation has not been fully audited for timing attacks, side channel attacks, or other vulnerabilities. Other bugs not caught by the test cases may be present. Use in a production environment is not encouraged.
+
+If any of above is of concern, please check out the official [KeccakTools](https://github.com/gvanas/KeccakTools) and [Keccak Code
+Package](https://github.com/gvanas/KeccakCodePackage)
