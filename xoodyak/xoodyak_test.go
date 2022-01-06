@@ -3,7 +3,6 @@ package xoodyak
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"testing"
 
 	"github.com/inmcm/xoodoo/xoodoo"
@@ -17,7 +16,7 @@ var xoodyakInstantiationTestTable = []struct {
 	counter []byte
 	xk      Xoodyak
 }{
-	// Hash mode intialization
+	// Hash mode initialization
 	{
 		key:     []byte{},
 		id:      []byte{},
@@ -489,8 +488,10 @@ func TestXoodyakRatchetWrongMode(t *testing.T) {
 	newXK.Mode = Hash
 	newXK.AbsorbSize = xoodyakRkIn
 	newXK.SqueezeSize = xoodyakRkOut
-	gotErr := newXK.Ratchet()
-	assert.Equal(t, errors.New("ratchet only available in keyed mode"), gotErr)
+	panicRatchet := func() {
+		newXK.Ratchet()
+	}
+	assert.PanicsWithError(t, "ratchet only available in keyed mode", panicRatchet)
 }
 
 var xoodyakSqueezeKeyTestTable = []struct {
@@ -667,7 +668,7 @@ func TestXoodyakSqueezeKey(t *testing.T) {
 		newXK.Mode = Keyed
 		newXK.AbsorbSize = xoodyakRkIn
 		newXK.SqueezeSize = xoodyakRkOut
-		gotKey, _ := newXK.SqueezeKey(tt.length)
+		gotKey := newXK.SqueezeKey(tt.length)
 		assert.Equal(t, tt.final, gotKey)
 	}
 }
@@ -679,7 +680,75 @@ func TestXoodyakSqueezeKeyWrongMode(t *testing.T) {
 	newXK.Mode = Hash
 	newXK.AbsorbSize = xoodyakRkIn
 	newXK.SqueezeSize = xoodyakRkOut
-	gotKey, gotErr := newXK.SqueezeKey(16)
-	assert.Equal(t, errors.New("squeeze key only available in keyed mode"), gotErr)
-	assert.Equal(t, []byte{}, gotKey)
+	panicSqueezeKey := func() {
+		newXK.SqueezeKey(10)
+	}
+	assert.PanicsWithError(t, "squeeze key only available in keyed mode", panicSqueezeKey)
+}
+
+var absorbKeyPanicTestTable = []struct {
+	keySize   int
+	nonceSize int
+	panicErr  string
+}{
+	{
+		keySize:   32,
+		nonceSize: 32,
+		panicErr:  "key and nonce lengths too large - key:32 nonce:32 combined:64 max:43",
+	},
+	{
+		keySize:   23,
+		nonceSize: 20,
+		panicErr:  "",
+	},
+	{
+		keySize:   16,
+		nonceSize: 16,
+		panicErr:  "",
+	},
+	{
+		keySize:   24,
+		nonceSize: 20,
+		panicErr:  "key and nonce lengths too large - key:24 nonce:20 combined:44 max:43",
+	},
+}
+
+func TestAbsorbKeyFailure(t *testing.T) {
+	for _, tt := range absorbKeyPanicTestTable {
+		newXK := Xoodyak{}
+		newXK.Instance, _ = xoodoo.NewXooDoo(xoodoo.MaxRounds, [48]byte{})
+		newXK.Mode = Hash
+		newXK.Phase = Up
+		newXK.AbsorbSize = hashSize
+		newXK.SqueezeSize = hashSize
+		key := make([]byte, tt.keySize)
+		nonce := make([]byte, tt.nonceSize)
+		panicAbsorbKey := func() {
+			newXK.AbsorbKey(key, nonce, nil)
+		}
+		if tt.panicErr != "" {
+			assert.PanicsWithError(t, tt.panicErr, panicAbsorbKey)
+		} else {
+			assert.NotPanics(t, panicAbsorbKey)
+		}
+	}
+}
+
+func TestXoodyakEncryptDecryptWrongModes(t *testing.T) {
+	newXK := Xoodyak{}
+	newXK.Instance, _ = xoodoo.NewXooDoo(xoodoo.MaxRounds, [48]byte{})
+	newXK.Phase = Up
+	newXK.Mode = Hash
+	newXK.AbsorbSize = xoodyakRkIn
+	newXK.SqueezeSize = xoodyakRkOut
+	msg := make([]byte, 64)
+	panicEncrypt := func() {
+		newXK.Encrypt(msg)
+	}
+	assert.PanicsWithError(t, "encrypt only available in keyed mode", panicEncrypt)
+
+	panicDecrypt := func() {
+		newXK.Decrypt(msg)
+	}
+	assert.PanicsWithError(t, "decrypt only available in keyed mode", panicDecrypt)
 }

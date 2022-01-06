@@ -83,20 +83,20 @@ func (xk *Xoodyak) Absorb(x []byte) {
 
 // Encrypt transforms the provided plaintext message into a ciphertext message of equal size
 // based on the Xoodyak instance provided (key, nonce, counter have already been processed)
-func (xk *Xoodyak) Encrypt(pt []byte) ([]byte, error) {
+func (xk *Xoodyak) Encrypt(pt []byte) []byte {
 	if xk.Mode != Keyed {
-		return []byte{}, errors.New("encrypt only available in keyed mode")
+		panic(errors.New("encrypt only available in keyed mode"))
 	}
-	return xk.Crypt(pt, Encrypting), nil
+	return xk.Crypt(pt, Encrypting)
 }
 
 // Decrypt transforms the provided ciphertext message into a plainext message of equal size
 // based on the Xoodyak instance provided (key, nonce, counter have already been processed)
-func (xk *Xoodyak) Decrypt(ct []byte) ([]byte, error) {
+func (xk *Xoodyak) Decrypt(ct []byte) []byte {
 	if xk.Mode != Keyed {
-		return []byte{}, errors.New("decrypt only available in keyed mode")
+		panic(errors.New("decrypt only available in keyed mode"))
 	}
-	return xk.Crypt(ct, Decrypting), nil
+	return xk.Crypt(ct, Decrypting)
 }
 
 // Squeeze outputs a provided stream of pseudo-random bytes at the rate of the Xoodyak instance's squeeze
@@ -106,22 +106,21 @@ func (xk *Xoodyak) Squeeze(outLen uint) []byte {
 }
 
 // SqueezeKey can generate a new encryption key from the existing Xoodyak state
-func (xk *Xoodyak) SqueezeKey(keyLen uint) ([]byte, error) {
+func (xk *Xoodyak) SqueezeKey(keyLen uint) []byte {
 	if xk.Mode != Keyed {
-		return []byte{}, errors.New("squeeze key only available in keyed mode")
+		panic(errors.New("squeeze key only available in keyed mode"))
 	}
-	return xk.SqueezeAny(keyLen, 0x20), nil
+	return xk.SqueezeAny(keyLen, 0x20)
 }
 
 // Ratchet performs a irreversible transformation of the underlying Xoodoo state to prevent key
 // recovery
-func (xk *Xoodyak) Ratchet() error {
+func (xk *Xoodyak) Ratchet() {
 	if xk.Mode != Keyed {
-		return errors.New("ratchet only available in keyed mode")
+		panic(errors.New("ratchet only available in keyed mode"))
 	}
 	ratchetSqueeze := xk.SqueezeAny(xoodyakRatchet, RatchetCu)
 	xk.AbsorbAny(ratchetSqueeze, xk.AbsorbSize, AbsorbCdMain)
-	return nil
 }
 
 // AbsorbBlock ingests a single block of bytes encompassing a single iteration
@@ -160,9 +159,9 @@ func (xk *Xoodyak) AbsorbAny(x []byte, r uint, cd uint8) {
 
 // AbsorbKey is special Xoodyak method that ingests provided key, id (nonce), and counter messages
 // into the Xoodoo state enabling the keyed mode of operation typically used for authenticated encryption
-func (xk *Xoodyak) AbsorbKey(key, id, counter []byte) error {
+func (xk *Xoodyak) AbsorbKey(key, id, counter []byte) {
 	if len(key)+len(id) >= xoodyakRkIn {
-		return fmt.Errorf("key and nonce lengths too large - key:%d nonce:%d combined:%d max:%d", len(key), len(id), len(key)+len(id), xoodyakRkIn-1)
+		panic(fmt.Errorf("key and nonce lengths too large - key:%d nonce:%d combined:%d max:%d", len(key), len(id), len(key)+len(id), xoodyakRkIn-1))
 	}
 	xk.Mode = Keyed
 	xk.AbsorbSize = xoodyakRkIn
@@ -175,7 +174,6 @@ func (xk *Xoodyak) AbsorbKey(key, id, counter []byte) error {
 			xk.AbsorbAny(counter, 1, 0x00)
 		}
 	}
-	return nil
 }
 
 // SqueezeAny allow generation of a message of pseudo-random bytes of any size based on permutating
@@ -204,7 +202,7 @@ func (xk *Xoodyak) SqueezeAny(YLen uint, Cu uint8) []byte {
 // state via xor with the existing state
 func (xk *Xoodyak) Down(Xi []byte, Cd byte) {
 	if len(Xi) > xoodoo.StateSizeBytes {
-		panic(fmt.Errorf("input slice size [%d] excceeds Xoodoo state size [%d]", len(Xi), xoodoo.StateSizeBytes))
+		panic(fmt.Errorf("input slice size [%d] exceeds Xoodoo state size [%d]", len(Xi), xoodoo.StateSizeBytes))
 	}
 	cd1 := Cd
 	if xk.Mode == Hash {

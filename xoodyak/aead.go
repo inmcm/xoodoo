@@ -25,7 +25,7 @@ func CryptoEncryptAEAD(in, key, id, ad []byte) (ct, tag []byte, err error) {
 	}
 	newXd := Instantiate(key, id, nil)
 	newXd.Absorb(ad)
-	ct, _ = newXd.Encrypt(in)
+	ct = newXd.Encrypt(in)
 	tag = newXd.Squeeze(tagLen)
 	return ct, tag, nil
 }
@@ -43,7 +43,7 @@ func CryptoDecryptAEAD(in, key, id, ad, tag []byte) (pt []byte, valid bool, err 
 	}
 	newXd := Instantiate(key, id, nil)
 	newXd.Absorb(ad)
-	pt, _ = newXd.Decrypt(in)
+	pt = newXd.Decrypt(in)
 	calculatedTag := newXd.Squeeze(tagLen)
 	valid = true
 	if subtle.ConstantTimeCompare(calculatedTag, tag) != 1 {
