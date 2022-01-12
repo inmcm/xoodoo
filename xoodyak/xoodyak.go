@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	hashSize             = 16
+	xoodyakHashIn        = 16
 	xoodyakRkIn          = 44
 	xoodyakRkOut         = 24
 	xoodyakRatchet       = 16
@@ -68,8 +68,8 @@ func Instantiate(key, id, counter []byte) *Xoodyak {
 	newXK.Instance, _ = xoodoo.NewXooDoo(xoodoo.MaxRounds, [48]byte{})
 	newXK.Mode = Hash
 	newXK.Phase = Up
-	newXK.AbsorbSize = hashSize
-	newXK.SqueezeSize = hashSize
+	newXK.AbsorbSize = xoodyakHashIn
+	newXK.SqueezeSize = xoodyakHashIn
 	if len(key) != 0 {
 		newXK.AbsorbKey(key, id, counter)
 	}
@@ -125,7 +125,7 @@ func (xk *Xoodyak) Ratchet() {
 
 // AbsorbBlock ingests a single block of bytes encompassing a single iteration
 // of the Cyclist sequence
-func (xk *Xoodyak) AbsorbBlock(x []byte, r uint, cd uint8) {
+func (xk *Xoodyak) AbsorbBlock(x []byte, cd uint8) {
 	if xk.Phase != Up {
 		xk.Up(0, 0)
 	}

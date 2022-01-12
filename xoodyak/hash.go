@@ -31,7 +31,7 @@ func HashXoodyakLen(in []byte, hLen uint) []byte {
 // digest represents the partial evaluation of a Xoodyak hash
 type digest struct {
 	xk       *Xoodyak
-	x        [16]byte
+	x        []byte
 	nx       int
 	absorbCd uint8
 }
@@ -42,27 +42,29 @@ func NewXoodyakHash() hash.Hash {
 	d := &digest{absorbCd: AbsorbCdInit}
 	xk := Instantiate([]byte{}, []byte{}, []byte{})
 	d.xk = xk
+	d.x = make([]byte, d.xk.AbsorbSize)
 	return d
 }
 
 // Write adds more data to the running hash.
 // It never returns an error.
 func (d *digest) Write(p []byte) (nn int, err error) {
+	absorbSize := int(d.xk.AbsorbSize)
 	nn = len(p)
 	if d.nx > 0 {
 		n := copy(d.x[d.nx:], p)
 		d.nx += n
-		if d.nx == hashSize {
-			d.xk.AbsorbBlock(d.x[:], d.xk.AbsorbSize, d.absorbCd)
+		if d.nx == absorbSize {
+			d.xk.AbsorbBlock(d.x, d.absorbCd)
 			d.nx = 0
 		}
 		p = p[n:]
 	}
-	if len(p) >= hashSize {
-		n := len(p) &^ (hashSize - 1)
-		for i := 0; i < n; i += hashSize {
-			d.xk.AbsorbBlock(p[:hashSize], d.xk.AbsorbSize, d.absorbCd)
-			p = p[hashSize:]
+	if len(p) >= absorbSize {
+		n := len(p) - (len(p) % absorbSize)
+		for i := 0; i < n; i += absorbSize {
+			d.xk.AbsorbBlock(p[:absorbSize], d.absorbCd)
+			p = p[absorbSize:]
 			d.absorbCd = AbsorbCdMain
 		}
 	}
@@ -78,12 +80,12 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 func (d *digest) Sum(b []byte) []byte {
 
 	if d.nx > 0 {
-		d.xk.AbsorbBlock(d.x[:d.nx], d.xk.AbsorbSize, d.absorbCd)
+		d.xk.AbsorbBlock(d.x[:d.nx], d.absorbCd)
 		d.absorbCd = AbsorbCdMain
 	}
 
 	if d.absorbCd == AbsorbCdInit {
-		d.xk.AbsorbBlock([]byte{}, d.xk.AbsorbSize, d.absorbCd)
+		d.xk.AbsorbBlock([]byte{}, d.absorbCd)
 	}
 
 	hash := d.xk.Squeeze(cryptoHashBytes)
@@ -96,7 +98,7 @@ func (d *digest) Reset() {
 	d.xk = xk
 	d.nx = 0
 	d.absorbCd = AbsorbCdInit
-	d.x = [16]byte{}
+	d.x = make([]byte, d.xk.AbsorbSize)
 }
 
 // Size returns the number of bytes Sum will return.
@@ -109,5 +111,5 @@ func (d *digest) Size() int {
 // of data, but it may operate more efficiently if all writes
 // are a multiple of the block size.
 func (d *digest) BlockSize() int {
-	return hashSize
+	return int(d.xk.AbsorbSize)
 }

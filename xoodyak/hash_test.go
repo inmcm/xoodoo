@@ -71,6 +71,13 @@ func TestCryptoHashOfficialKAT(t *testing.T) {
 		gotHash := HashXoodyak(msgBytes)
 		assert.Equal(t, hashBytes, gotHash)
 
+		xkHash := NewXoodyakHash()
+		gotLen, gotErr := xkHash.Write(msgBytes)
+		assert.NoError(t, gotErr)
+		assert.Equal(t, len(msgBytes), gotLen)
+		gotHash = xkHash.Sum(nil)
+		assert.Equal(t, hashBytes, gotHash)
+
 		// Empty Line
 		_, _, err = katBuf.ReadLine()
 		assert.NoError(t, err)
@@ -140,7 +147,6 @@ func TestXoodyakReset(t *testing.T) {
 	newXk.Write([]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x01, 0x02, 0x03, 0x04, 0x05, 0x01, 0x02, 0x03, 0x04, 0x05, 0x01, 0x02, 0x03, 0x04, 0x05})
 	newXk.Sum(nil)
 	dirtyDigest := newXk.(*digest)
-	// dirtyDigest.xk.Down([]byte{0x01, 0x02, 0x03}, 0xFF)
 	dirtyDigest.xk.Up(0x00, 10)
 	assert.NotEqual(t, [16]byte{}, dirtyDigest.x)
 	assert.NotEqual(t, emptyXooDyak.Instance.Bytes(), dirtyDigest.xk.Instance.Bytes())
@@ -149,7 +155,7 @@ func TestXoodyakReset(t *testing.T) {
 	assert.NotEqual(t, AbsorbCdInit, dirtyDigest.absorbCd)
 	newXk.Reset()
 	cleanDigest := newXk.(*digest)
-	assert.Equal(t, [16]byte{}, cleanDigest.x)
+	assert.Equal(t, []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, cleanDigest.x)
 	assert.Equal(t, emptyXooDyak.Instance.Bytes(), cleanDigest.xk.Instance.Bytes())
 	assert.Equal(t, emptyXooDyak.Phase, cleanDigest.xk.Phase)
 	assert.Equal(t, 0, cleanDigest.nx)
@@ -159,7 +165,7 @@ func TestXoodyakReset(t *testing.T) {
 
 func TestXoodyakHashSizes(t *testing.T) {
 	newXk := NewXoodyakHash()
-	assert.Equal(t, hashSize, newXk.BlockSize())
+	assert.Equal(t, xoodyakHashIn, newXk.BlockSize())
 	assert.Equal(t, cryptoHashBytes, newXk.Size())
 }
 
