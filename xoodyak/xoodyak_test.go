@@ -22,8 +22,8 @@ var xoodyakInstantiationTestTable = []struct {
 		id:      []byte{},
 		counter: []byte{},
 		xk: Xoodyak{
-			Instance: &xoodoo.XooDoo{
-				State: xoodoo.XooDooState{},
+			Instance: &xoodoo.Xoodoo{
+				State: xoodoo.XoodooState{},
 			},
 			Mode:        Hash,
 			Phase:       Up,
@@ -90,7 +90,7 @@ var xoodyakCyclistDownTestTable = []struct {
 }
 
 func BenchmarkXoodyakCyclistDown(b *testing.B) {
-	var newXd xoodoo.XooDoo
+	var newXd xoodoo.Xoodoo
 	var newXk Xoodyak
 	newXk.Instance = &newXd
 	newXk.Mode = Hash
@@ -103,7 +103,7 @@ func BenchmarkXoodyakCyclistDown(b *testing.B) {
 
 func TestXoodyakCyclistDown(t *testing.T) {
 	for _, tt := range xoodyakCyclistDownTestTable {
-		var newXd xoodoo.XooDoo
+		var newXd xoodoo.Xoodoo
 		var newXk Xoodyak
 		newXk.Instance = &newXd
 		buf := bytes.NewReader(tt.startState[:])
@@ -117,7 +117,7 @@ func TestXoodyakCyclistDown(t *testing.T) {
 }
 
 func TestXoodyakCyclistDownPanic(t *testing.T) {
-	var newXd xoodoo.XooDoo
+	var newXd xoodoo.Xoodoo
 	var newXk Xoodyak
 	newXk.Instance = &newXd
 	newXk.Mode = Hash
@@ -185,7 +185,7 @@ var xoodyakCyclistUpTestTable = []struct {
 }
 
 func BenchmarkXoodyakCyclistUp(b *testing.B) {
-	newXd, _ := xoodoo.NewXooDoo(12, [48]byte{})
+	newXd, _ := xoodoo.NewXoodoo(12, [48]byte{})
 	var newXk Xoodyak
 	newXk.Instance = newXd
 	newXk.Mode = Hash
@@ -197,7 +197,7 @@ func BenchmarkXoodyakCyclistUp(b *testing.B) {
 
 func TestXoodyakCyclistUp(t *testing.T) {
 	for _, tt := range xoodyakCyclistUpTestTable {
-		newXd, _ := xoodoo.NewXooDoo(12, tt.startState)
+		newXd, _ := xoodoo.NewXoodoo(12, tt.startState)
 		var newXk Xoodyak
 		newXk.Instance = newXd
 		newXk.Mode = Hash
@@ -208,7 +208,7 @@ func TestXoodyakCyclistUp(t *testing.T) {
 }
 
 func TestXoodyakCyclistUpPanic(t *testing.T) {
-	var newXd xoodoo.XooDoo
+	var newXd xoodoo.Xoodoo
 	var newXk Xoodyak
 	newXk.Instance = &newXd
 	newXk.Mode = Hash
@@ -267,7 +267,7 @@ var xoodyakCyclistAbsorbAnyTestTable = []struct {
 
 func TestXoodyakCyclistAbsorbAny(t *testing.T) {
 	for _, tt := range xoodyakCyclistAbsorbAnyTestTable {
-		tt.xkIn.Instance, _ = xoodoo.NewXooDoo(12, tt.xdIn)
+		tt.xkIn.Instance, _ = xoodoo.NewXoodoo(12, tt.xdIn)
 		tt.xkIn.AbsorbAny(tt.x, tt.r, tt.cd)
 		assert.Equal(t, tt.xdOut, tt.xkIn.Instance.Bytes())
 		assert.Equal(t, tt.xkOut.Mode, tt.xkIn.Mode)
@@ -310,7 +310,7 @@ var xoodyakCyclistSqueezeAnyTestTable = []struct {
 
 func TestXoodyakCyclistSqueezeAny(t *testing.T) {
 	for _, tt := range xoodyakCyclistSqueezeAnyTestTable {
-		tt.xkIn.Instance, _ = xoodoo.NewXooDoo(12, tt.xdIn)
+		tt.xkIn.Instance, _ = xoodoo.NewXoodoo(12, tt.xdIn)
 		gotOutput := tt.xkIn.SqueezeAny(tt.YLen, tt.cu)
 		assert.Equal(t, tt.output, gotOutput)
 	}
@@ -471,7 +471,7 @@ var xoodyakRatchetTestTable = []struct {
 func TestXoodyakRatchet(t *testing.T) {
 	for _, tt := range xoodyakRatchetTestTable {
 		newXK := Xoodyak{}
-		newXK.Instance, _ = xoodoo.NewXooDoo(xoodoo.MaxRounds, tt.initial)
+		newXK.Instance, _ = xoodoo.NewXoodoo(xoodoo.MaxRounds, tt.initial)
 		newXK.Phase = Up
 		newXK.Mode = Keyed
 		newXK.AbsorbSize = xoodyakRkIn
@@ -483,7 +483,7 @@ func TestXoodyakRatchet(t *testing.T) {
 
 func TestXoodyakRatchetWrongMode(t *testing.T) {
 	newXK := Xoodyak{}
-	newXK.Instance, _ = xoodoo.NewXooDoo(xoodoo.MaxRounds, [48]byte{})
+	newXK.Instance, _ = xoodoo.NewXoodoo(xoodoo.MaxRounds, [48]byte{})
 	newXK.Phase = Up
 	newXK.Mode = Hash
 	newXK.AbsorbSize = xoodyakRkIn
@@ -663,7 +663,7 @@ var xoodyakSqueezeKeyTestTable = []struct {
 func TestXoodyakSqueezeKey(t *testing.T) {
 	for _, tt := range xoodyakSqueezeKeyTestTable {
 		newXK := Xoodyak{}
-		newXK.Instance, _ = xoodoo.NewXooDoo(xoodoo.MaxRounds, tt.initial)
+		newXK.Instance, _ = xoodoo.NewXoodoo(xoodoo.MaxRounds, tt.initial)
 		newXK.Phase = Up
 		newXK.Mode = Keyed
 		newXK.AbsorbSize = xoodyakRkIn
@@ -675,7 +675,7 @@ func TestXoodyakSqueezeKey(t *testing.T) {
 
 func TestXoodyakSqueezeKeyWrongMode(t *testing.T) {
 	newXK := Xoodyak{}
-	newXK.Instance, _ = xoodoo.NewXooDoo(xoodoo.MaxRounds, [48]byte{})
+	newXK.Instance, _ = xoodoo.NewXoodoo(xoodoo.MaxRounds, [48]byte{})
 	newXK.Phase = Up
 	newXK.Mode = Hash
 	newXK.AbsorbSize = xoodyakRkIn
@@ -716,7 +716,7 @@ var absorbKeyPanicTestTable = []struct {
 func TestAbsorbKeyFailure(t *testing.T) {
 	for _, tt := range absorbKeyPanicTestTable {
 		newXK := Xoodyak{}
-		newXK.Instance, _ = xoodoo.NewXooDoo(xoodoo.MaxRounds, [48]byte{})
+		newXK.Instance, _ = xoodoo.NewXoodoo(xoodoo.MaxRounds, [48]byte{})
 		newXK.Mode = Hash
 		newXK.Phase = Up
 		newXK.AbsorbSize = xoodyakHashIn
@@ -736,7 +736,7 @@ func TestAbsorbKeyFailure(t *testing.T) {
 
 func TestXoodyakEncryptDecryptWrongModes(t *testing.T) {
 	newXK := Xoodyak{}
-	newXK.Instance, _ = xoodoo.NewXooDoo(xoodoo.MaxRounds, [48]byte{})
+	newXK.Instance, _ = xoodoo.NewXoodoo(xoodoo.MaxRounds, [48]byte{})
 	newXK.Phase = Up
 	newXK.Mode = Hash
 	newXK.AbsorbSize = xoodyakRkIn

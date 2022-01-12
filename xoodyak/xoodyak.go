@@ -52,7 +52,7 @@ const (
 // Xoodoo permutation primitive. Xoodyak allows for construction of a variety of hashing, encryption
 // and authentication schemes through assembly of its various operating methods
 type Xoodyak struct {
-	Instance    *xoodoo.XooDoo
+	Instance    *xoodoo.Xoodoo
 	Mode        CyclistMode
 	Phase       CyclistPhase
 	AbsorbSize  uint
@@ -65,7 +65,7 @@ type Xoodyak struct {
 // keyed operations
 func Instantiate(key, id, counter []byte) *Xoodyak {
 	newXK := Xoodyak{}
-	newXK.Instance, _ = xoodoo.NewXooDoo(xoodoo.MaxRounds, [48]byte{})
+	newXK.Instance, _ = xoodoo.NewXoodoo(xoodoo.MaxRounds, [48]byte{})
 	newXK.Mode = Hash
 	newXK.Phase = Up
 	newXK.AbsorbSize = xoodyakHashIn

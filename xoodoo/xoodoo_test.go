@@ -8,7 +8,7 @@ import (
 )
 
 func BenchmarkXoodooPermutation(b *testing.B) {
-	newXD, _ := NewXooDoo(12, [48]byte{})
+	newXD, _ := NewXoodoo(12, [48]byte{})
 	for n := 0; n < b.N; n++ {
 		newXD.Permutation()
 	}
@@ -83,14 +83,14 @@ var permutationTestTable = []struct {
 
 func TestPermutation(t *testing.T) {
 	for _, tt := range permutationTestTable {
-		newXD, _ := NewXooDoo(tt.rounds, tt.inBytes)
+		newXD, _ := NewXoodoo(tt.rounds, tt.inBytes)
 		newXD.Permutation()
 		assert.Equal(t, tt.outBytes, newXD.Bytes())
 	}
 }
 
 func BenchmarkXorStateBytes(b *testing.B) {
-	newXD, _ := NewXooDoo(12, [48]byte{})
+	newXD, _ := NewXoodoo(12, [48]byte{})
 	data := make([]byte, 48)
 	for n := 0; n < b.N; n++ {
 		newXD.State.XorStateBytes(data)
@@ -98,7 +98,7 @@ func BenchmarkXorStateBytes(b *testing.B) {
 }
 
 func BenchmarkUnmarshalBinary(b *testing.B) {
-	newXD, _ := NewXooDoo(12, [48]byte{})
+	newXD, _ := NewXoodoo(12, [48]byte{})
 	data := make([]byte, 48)
 	for n := 0; n < b.N; n++ {
 		newXD.State.UnmarshalBinary(data)
@@ -106,7 +106,7 @@ func BenchmarkUnmarshalBinary(b *testing.B) {
 }
 
 func BenchmarkMarshalBinary(b *testing.B) {
-	newXD, _ := NewXooDoo(12, [48]byte{})
+	newXD, _ := NewXoodoo(12, [48]byte{})
 	for n := 0; n < b.N; n++ {
 		newXD.State.MarshalBinary()
 	}
@@ -172,7 +172,7 @@ var xorByteTestTable = []struct {
 
 func TestXorByte(t *testing.T) {
 	for _, tt := range xorByteTestTable {
-		newXD, _ := NewXooDoo(12, tt.initial)
+		newXD, _ := NewXoodoo(12, tt.initial)
 		gotErr := newXD.State.XorByte(tt.value, tt.offset)
 		assert.Equal(t, tt.final[:], newXD.Bytes())
 		assert.Equal(t, tt.err, gotErr)
