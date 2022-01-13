@@ -157,7 +157,7 @@ func NewXoodoo(rounds int, state [StateSizeBytes]byte) (*Xoodoo, error) {
 	}
 	err := new.State.UnmarshalBinary(state[:])
 	if err != nil {
-		return nil, fmt.Errorf("invalid initial state")
+		return nil, fmt.Errorf("invalid initial state:%s", err)
 	}
 	return &new, nil
 }
