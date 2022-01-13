@@ -23,7 +23,7 @@ var xoodyakInstantiationTestTable = []struct {
 		counter: []byte{},
 		xk: Xoodyak{
 			Instance: &xoodoo.Xoodoo{
-				State: xoodoo.XoodooState{},
+				State: xoodoo.State{},
 			},
 			Mode:        Hash,
 			Phase:       Up,

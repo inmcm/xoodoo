@@ -12,7 +12,7 @@ const (
 	MaxRounds = 12
 	// StateSizeBytes describes the Xoodoo object in term of the number of bytes it is made up of
 	StateSizeBytes = 48
-	// StateSizeBytes describes the Xoodoo object in term of the number of 32-bit unsigned ints it is made up of
+	// StateSizeWords describes the Xoodoo object in term of the number of 32-bit unsigned ints it is made up of
 	StateSizeWords = 12
 )
 
@@ -34,15 +34,20 @@ var (
 	}
 )
 
-type XoodooState [StateSizeWords]uint32
+// State represents the 384-bit Xoodoo object as a collection of uint32 words
+type State [StateSizeWords]uint32
 
+// Xoodoo combines the xoodoo state with additional configuration for completing the
+// permutation operation
 type Xoodoo struct {
-	State  XoodooState
+	State  State
 	rounds int
 }
 
-func XorState(a, b XoodooState) XoodooState {
-	return XoodooState{
+// XorState performs the exclusive-or operation on two XoodooState objects and returns
+// the resulting XoodooState
+func XorState(a, b State) State {
+	return State{
 		a[0] ^ b[0],
 		a[1] ^ b[1],
 		a[2] ^ b[2],
@@ -58,7 +63,9 @@ func XorState(a, b XoodooState) XoodooState {
 	}
 }
 
-func (xds *XoodooState) XorStateBytes(in []byte) {
+// XorStateBytes performs an exclusive-or between the input byte slice and
+// the underlying XoodooState. The result is saved to the internal state
+func (xds *State) XorStateBytes(in []byte) {
 	xds[0] ^= (binary.LittleEndian.Uint32(in[0:4]))
 	xds[1] ^= (binary.LittleEndian.Uint32(in[4:8]))
 	xds[2] ^= (binary.LittleEndian.Uint32(in[8:12]))
@@ -73,7 +80,10 @@ func (xds *XoodooState) XorStateBytes(in []byte) {
 	xds[11] ^= (binary.LittleEndian.Uint32(in[44:48]))
 }
 
-func (xds *XoodooState) XorByte(x byte, offset int) error {
+// XorByte performs an exclusive-or between a single provide byte and byte
+// within the underlying XoodooState based on the provided offset. The result
+// is stored in the XoodooState
+func (xds *State) XorByte(x byte, offset int) error {
 	if offset < 0 || offset >= StateSizeBytes {
 		return fmt.Errorf("xor byte offset out of range:%d", offset)
 	}
@@ -82,20 +92,24 @@ func (xds *XoodooState) XorByte(x byte, offset int) error {
 	return nil
 }
 
-func (xds *Xoodoo) XorExtractBytes(x []byte) ([]byte, error) {
+// XorExtractBytes performs an exclusive-or between a provided number of bytes and a matching number
+// of bytes of the underlying Xoodoo state starting from offset 0.
+func (xd *Xoodoo) XorExtractBytes(x []byte) ([]byte, error) {
 	size := len(x)
 	if size <= 0 || size > StateSizeBytes {
 		return nil, fmt.Errorf("xor and extract bytes size out of range:%d", size)
 	}
 	out := make([]byte, size)
-	stateBytes := xds.Bytes()
+	stateBytes := xd.Bytes()
 	for i := 0; i < size; i++ {
 		out[i] = stateBytes[i] ^ x[i]
 	}
 	return out, nil
 }
 
-func (xds *XoodooState) UnmarshalBinary(data []byte) error {
+// UnmarshalBinary converts provide byte slice to the Xoodoo state format
+// This method allows State to satisfy the encoding.BinaryUnmarshaler interface
+func (xds *State) UnmarshalBinary(data []byte) error {
 	if len(data) != StateSizeBytes {
 		return fmt.Errorf("input data (%d bytes) != xoodoo state size (%d bytes)", len(data), StateSizeBytes)
 	}
@@ -114,7 +128,9 @@ func (xds *XoodooState) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (xds *XoodooState) MarshalBinary() (data []byte, err error) {
+// MarshalBinary converts the Xoodoo state of the receiver to slice of bytes
+// This method allows State to satisfy the encoding.BinaryMarshaler interface
+func (xds *State) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, StateSizeBytes)
 	binary.LittleEndian.PutUint32(data[0:4], xds[0])
 	binary.LittleEndian.PutUint32(data[4:8], xds[1])
@@ -131,6 +147,8 @@ func (xds *XoodooState) MarshalBinary() (data []byte, err error) {
 	return data, nil
 }
 
+// NewXoodoo returns a new Xoodoo object initialized with the desired number of rounds
+// for the permutation function to execute
 func NewXoodoo(rounds int, state [StateSizeBytes]byte) (*Xoodoo, error) {
 	var new Xoodoo
 	new.rounds = rounds
@@ -144,16 +162,17 @@ func NewXoodoo(rounds int, state [StateSizeBytes]byte) (*Xoodoo, error) {
 	return &new, nil
 }
 
+// Bytes returns the internal Xoodoo state as a slice of bytes
 func (xd *Xoodoo) Bytes() []byte {
 	buf, _ := xd.State.MarshalBinary()
 	return buf
 }
 
-// Permutation executes an optimized implementation of Xoodoo permutation over the provided
-// xoodoo state
+// Permutation executes an optimized implementation of Xoodoo permutation operation over the
+//provided  xoodoo state
 func (xd *Xoodoo) Permutation() {
 	xds := xd.State
-	var tmp XoodooState
+	var tmp State
 	var P, E [4]uint32
 	for i := MaxRounds - xd.rounds; i < MaxRounds; i++ {
 		P = [4]uint32{
