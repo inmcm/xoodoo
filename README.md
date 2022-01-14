@@ -64,8 +64,8 @@ func main() {
 }
 ```
 ```sh
-% go run main.go   
-Msg:hello xoodoo
+% go run main.go
+Msg:'hello xoodoo'
 Hash:5c9a95363d79b2157cbdfff49dddaf1f20562dc64644f2d28211478537e6b29a
 ```
 ### Authenticated Encryption
@@ -170,6 +170,15 @@ func main() {
 	fmt.Fprintf(&output, "Plaintext:'%s'", myPt)
 	fmt.Println(output.String())
 }
+```
+```sh
+% go run main.go
+Msg:'hello xoodoo'
+Key:0f0e0d0c0b0a09080706050403020100
+Nonce:f0e1d2c3b4a5968778695a4b3c2d1e0f
+Metadata:3333c2b03539e2809933392e3531e280b34e2c2037c2b03530e2809933332e3639e280b345
+Authenticated Ciphertext:fffc82f88d8bb2ba4f38b85d6ef42d19830b3f0ecd784be7f4d10f46
+Plaintext:'hello xoodoo'
 ```
 
 ## Caveats
