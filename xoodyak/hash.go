@@ -11,8 +11,7 @@ const (
 func cryptoHash(in []byte, hLen uint) []byte {
 	newXd := Instantiate([]byte{}, []byte{}, []byte{})
 	newXd.Absorb(in)
-	output := newXd.Squeeze(hLen)
-	return output
+	return newXd.Squeeze(hLen)
 }
 
 // HashXoodyak calculates a 32-byte hash on a provided slice of bytes.

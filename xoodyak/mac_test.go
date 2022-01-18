@@ -53,9 +53,22 @@ var xoodyakMACTestTable = []struct {
 	},
 }
 
-/*
+func BenchmarkMAC(b *testing.B) {
+	msg := make([]byte, 1024)
+	key := make([]byte, 16)
+	for n := 0; n < b.N; n++ {
+		MACXoodyak(key, msg, cryptoHashBytes)
+	}
+}
 
- */
+func BenchmarkHashInterfaceMAC(b *testing.B) {
+	msg := make([]byte, 1024)
+	key := make([]byte, 16)
+	for n := 0; n < b.N; n++ {
+		newMAC := NewXoodyakMac(key)
+		newMAC.Write(msg)
+	}
+}
 
 func TestXoodyakMAC(t *testing.T) {
 	for _, tt := range xoodyakMACTestTable {

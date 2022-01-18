@@ -12,6 +12,29 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func BenchmarkHash(b *testing.B) {
+	msg := make([]byte, 1024)
+	for n := 0; n < b.N; n++ {
+		HashXoodyak(msg)
+	}
+}
+
+func BenchmarkCryptoHash(b *testing.B) {
+	msg := make([]byte, 1024)
+	for n := 0; n < b.N; n++ {
+		cryptoHash(msg, 32)
+	}
+}
+
+func BenchmarkHashInterface(b *testing.B) {
+	msg := make([]byte, 1024)
+	for n := 0; n < b.N; n++ {
+		newMAC := NewXoodyakHash()
+		newMAC.Write(msg)
+		newMAC.Sum(nil)
+	}
+}
+
 var cryptoHashBasicTestTable = []struct {
 	input  []byte
 	output []byte
