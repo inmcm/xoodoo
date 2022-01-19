@@ -181,6 +181,37 @@ Authenticated Ciphertext:fffc82f88d8bb2ba4f38b85d6ef42d19830b3f0ecd784be7f4d10f4
 Plaintext:'hello xoodoo'
 ```
 
+## Benchmarks
+A collection of micro-benchmarks are provided within each sub-package to allow for performance comparisons between systems and other implementations. To run the entire suite:
+```sh
+% go test -bench=. ./...
+goos: linux
+goarch: amd64
+pkg: github.com/inmcm/xoodoo/xoodoo
+cpu: AMD EPYC 7601 32-Core Processor
+BenchmarkXoodooPermutation 	 5036336	       247.1 ns/op
+BenchmarkXorStateBytes     	155647138	         8.142 ns/op
+BenchmarkUnmarshalBinary   	162885417	         7.921 ns/op
+BenchmarkMarshalBinary     	22321699	        57.00 ns/op
+PASS
+ok  	github.com/inmcm/xoodoo/xoodoo	6.903s
+goos: linux
+goarch: amd64
+pkg: github.com/inmcm/xoodoo/xoodyak
+cpu: AMD EPYC 7601 32-Core Processor
+BenchmarkEncryptAEAD        	   55347	     19244 ns/op
+BenchmarkDecryptAEAD        	   66106	     19082 ns/op
+BenchmarkHash               	   71767	     16448 ns/op
+BenchmarkCryptoHash         	   76081	     17217 ns/op
+BenchmarkHashInterface      	   72882	     16869 ns/op
+BenchmarkMAC                	  172496	      7211 ns/op
+BenchmarkHashInterfaceMAC   	  193495	      6746 ns/op
+BenchmarkXoodyakCyclistDown 	81201373	        15.11 ns/op
+BenchmarkXoodyakCyclistUp   	 4199320	       276.5 ns/op
+PASS
+ok  	github.com/inmcm/xoodoo/xoodyak	13.555s
+```
+
 ## Caveats
 While security was top of mind during development, this implementation has not been fully audited for timing attacks, side channel attacks, or other vulnerabilities. Other bugs not caught by the test cases may be present. Use in a production environment is not encouraged.
 
