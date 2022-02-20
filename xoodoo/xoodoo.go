@@ -42,6 +42,9 @@ type State [StateSizeWords]uint32
 type Xoodoo struct {
 	State  State
 	rounds int
+	tmp    State
+	p      [4]uint32
+	e      [4]uint32
 }
 
 // XorState performs the exclusive-or operation on two XoodooState objects and returns
@@ -171,53 +174,52 @@ func (xd *Xoodoo) Bytes() []byte {
 // Permutation executes an optimized implementation of Xoodoo permutation operation over the
 //provided  xoodoo state
 func (xd *Xoodoo) Permutation() {
-	xds := xd.State
-	var tmp State
-	var P, E [4]uint32
 	for i := MaxRounds - xd.rounds; i < MaxRounds; i++ {
-		P = [4]uint32{
-			xds[0] ^ xds[4] ^ xds[8],
-			xds[1] ^ xds[5] ^ xds[9],
-			xds[2] ^ xds[6] ^ xds[10],
-			xds[3] ^ xds[7] ^ xds[11],
+		xd.p = [4]uint32{
+			xd.State[0] ^ xd.State[4] ^ xd.State[8],
+			xd.State[1] ^ xd.State[5] ^ xd.State[9],
+			xd.State[2] ^ xd.State[6] ^ xd.State[10],
+			xd.State[3] ^ xd.State[7] ^ xd.State[11],
 		}
-		E = [4]uint32{
-			bits.RotateLeft32(P[3], 5) ^ bits.RotateLeft32(P[3], 14),
-			bits.RotateLeft32(P[0], 5) ^ bits.RotateLeft32(P[0], 14),
-			bits.RotateLeft32(P[1], 5) ^ bits.RotateLeft32(P[1], 14),
-			bits.RotateLeft32(P[2], 5) ^ bits.RotateLeft32(P[2], 14),
+		xd.e = [4]uint32{
+			bits.RotateLeft32(xd.p[3], 5) ^ bits.RotateLeft32(xd.p[3], 14),
+			bits.RotateLeft32(xd.p[0], 5) ^ bits.RotateLeft32(xd.p[0], 14),
+			bits.RotateLeft32(xd.p[1], 5) ^ bits.RotateLeft32(xd.p[1], 14),
+			bits.RotateLeft32(xd.p[2], 5) ^ bits.RotateLeft32(xd.p[2], 14),
 		}
 
-		tmp[0] = E[0] ^ xds[0] ^ RoundConstants[i]
-		tmp[1] = E[1] ^ xds[1]
-		tmp[2] = E[2] ^ xds[2]
-		tmp[3] = E[3] ^ xds[3]
+		xd.tmp[0] = xd.e[0] ^ xd.State[0] ^ RoundConstants[i]
+		xd.tmp[1] = xd.e[1] ^ xd.State[1]
+		xd.tmp[2] = xd.e[2] ^ xd.State[2]
+		xd.tmp[3] = xd.e[3] ^ xd.State[3]
 
-		tmp[4] = E[3] ^ xds[7]
-		tmp[5] = E[0] ^ xds[4]
-		tmp[6] = E[1] ^ xds[5]
-		tmp[7] = E[2] ^ xds[6]
+		xd.tmp[4] = xd.e[3] ^ xd.State[7]
+		xd.tmp[5] = xd.e[0] ^ xd.State[4]
+		xd.tmp[6] = xd.e[1] ^ xd.State[5]
+		xd.tmp[7] = xd.e[2] ^ xd.State[6]
 
-		tmp[8] = bits.RotateLeft32(E[0]^xds[8], 11)
-		tmp[9] = bits.RotateLeft32(E[1]^xds[9], 11)
-		tmp[10] = bits.RotateLeft32(E[2]^xds[10], 11)
-		tmp[11] = bits.RotateLeft32(E[3]^xds[11], 11)
+		xd.tmp[8] = bits.RotateLeft32(xd.e[0]^xd.State[8], 11)
+		xd.tmp[9] = bits.RotateLeft32(xd.e[1]^xd.State[9], 11)
+		xd.tmp[10] = bits.RotateLeft32(xd.e[2]^xd.State[10], 11)
+		xd.tmp[11] = bits.RotateLeft32(xd.e[3]^xd.State[11], 11)
 
-		xds[0] = (^tmp[4] & tmp[8]) ^ tmp[0]
-		xds[1] = (^tmp[5] & tmp[9]) ^ tmp[1]
-		xds[2] = (^tmp[6] & tmp[10]) ^ tmp[2]
-		xds[3] = (^tmp[7] & tmp[11]) ^ tmp[3]
+		xd.State[0] = (^xd.tmp[4] & xd.tmp[8]) ^ xd.tmp[0]
+		xd.State[1] = (^xd.tmp[5] & xd.tmp[9]) ^ xd.tmp[1]
+		xd.State[2] = (^xd.tmp[6] & xd.tmp[10]) ^ xd.tmp[2]
+		xd.State[3] = (^xd.tmp[7] & xd.tmp[11]) ^ xd.tmp[3]
 
-		xds[4] = bits.RotateLeft32((^tmp[8]&tmp[0])^tmp[4], 1)
-		xds[5] = bits.RotateLeft32((^tmp[9]&tmp[1])^tmp[5], 1)
-		xds[6] = bits.RotateLeft32((^tmp[10]&tmp[2])^tmp[6], 1)
-		xds[7] = bits.RotateLeft32((^tmp[11]&tmp[3])^tmp[7], 1)
+		xd.State[4] = bits.RotateLeft32((^xd.tmp[8]&xd.tmp[0])^xd.tmp[4], 1)
+		xd.State[5] = bits.RotateLeft32((^xd.tmp[9]&xd.tmp[1])^xd.tmp[5], 1)
+		xd.State[6] = bits.RotateLeft32((^xd.tmp[10]&xd.tmp[2])^xd.tmp[6], 1)
+		xd.State[7] = bits.RotateLeft32((^xd.tmp[11]&xd.tmp[3])^xd.tmp[7], 1)
 
-		xds[8] = bits.RotateLeft32((^tmp[2]&tmp[6])^tmp[10], 8)
-		xds[9] = bits.RotateLeft32((^tmp[3]&tmp[7])^tmp[11], 8)
-		xds[10] = bits.RotateLeft32((^tmp[0]&tmp[4])^tmp[8], 8)
-		xds[11] = bits.RotateLeft32((^tmp[1]&tmp[5])^tmp[9], 8)
+		xd.State[8] = bits.RotateLeft32((^xd.tmp[2]&xd.tmp[6])^xd.tmp[10], 8)
+		xd.State[9] = bits.RotateLeft32((^xd.tmp[3]&xd.tmp[7])^xd.tmp[11], 8)
+		xd.State[10] = bits.RotateLeft32((^xd.tmp[0]&xd.tmp[4])^xd.tmp[8], 8)
+		xd.State[11] = bits.RotateLeft32((^xd.tmp[1]&xd.tmp[5])^xd.tmp[9], 8)
 
 	}
-	xd.State = xds
+	xd.tmp = State{}
+	xd.e = [4]uint32{}
+	xd.p = [4]uint32{}
 }
