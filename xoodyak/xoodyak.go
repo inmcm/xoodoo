@@ -191,8 +191,7 @@ func (xk *Xoodyak) SqueezeAny(YLen uint, Cu uint8) []byte {
 		if remaining < squeezeLen {
 			squeezeLen = remaining
 		}
-		tmp := xk.Up(0, squeezeLen)
-		output = append(output, tmp...)
+		output = append(output, xk.Up(0, squeezeLen)...)
 		remaining -= squeezeLen
 	}
 	return output
@@ -229,8 +228,7 @@ func (xk *Xoodyak) Up(Cu byte, Yilen uint) []byte {
 	if Yilen == 0 {
 		return []byte{}
 	}
-	tmp := xk.Instance.Bytes()
-	return tmp[:Yilen]
+	return xk.Instance.Bytes()[:Yilen]
 
 }
 
@@ -242,7 +240,7 @@ func (xk *Xoodyak) Crypt(msg []byte, cm CryptMode) []byte {
 	processed := 0
 	remaining := len(msg)
 	cryptLen := xoodyakRkOut
-	out := []byte{}
+	out := make([]byte, remaining)
 	for {
 		if remaining < cryptLen {
 			cryptLen = remaining
@@ -254,7 +252,7 @@ func (xk *Xoodyak) Crypt(msg []byte, cm CryptMode) []byte {
 		} else {
 			xk.Down(xorBytes, CryptCd)
 		}
-		out = append(out, xorBytes...)
+		copy(out[processed:], xorBytes)
 		cuTmp = CryptCuMain
 		remaining -= cryptLen
 		processed += cryptLen

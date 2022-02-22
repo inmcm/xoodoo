@@ -275,6 +275,14 @@ func TestXoodyakCyclistAbsorbAny(t *testing.T) {
 	}
 }
 
+func BenchmarkXoodyakCyclistAbsorbAny(b *testing.B) {
+	xk := Instantiate([]byte{}, []byte{}, []byte{})
+	in := make([]byte, 32)
+	for n := 0; n < b.N; n++ {
+		xk.AbsorbAny(in, xoodyakHashIn, AbsorbCdInit)
+	}
+}
+
 var xoodyakCyclistSqueezeAnyTestTable = []struct {
 	xdIn   [48]byte
 	YLen   uint
@@ -313,6 +321,19 @@ func TestXoodyakCyclistSqueezeAny(t *testing.T) {
 		tt.xkIn.Instance, _ = xoodoo.NewXoodoo(12, tt.xdIn)
 		gotOutput := tt.xkIn.SqueezeAny(tt.YLen, tt.cu)
 		assert.Equal(t, tt.output, gotOutput)
+	}
+}
+
+func BenchmarkXoodyakCyclistSqueezeAny(b *testing.B) {
+	xk := Xoodyak{
+		Mode:        Hash,
+		Phase:       Up,
+		AbsorbSize:  xoodyakHashIn,
+		SqueezeSize: xoodyakHashIn,
+	}
+	xk.Instance, _ = xoodoo.NewXoodoo(12, [48]byte{})
+	for n := 0; n < b.N; n++ {
+		xk.SqueezeAny(32, SqueezeCuInit)
 	}
 }
 
@@ -837,4 +858,27 @@ func TestNonStandardXoodyakEncryption(t *testing.T) {
 
 	}
 
+}
+func BenchmarkEncrypt(b *testing.B) {
+	key := make([]byte, 16)
+	nonce := make([]byte, 16)
+	ad := make([]byte, 16)
+	pt := make([]byte, 64)
+	newXd := Instantiate(key, nonce, nil)
+	newXd.Absorb(ad)
+	for n := 0; n < b.N; n++ {
+		newXd.Encrypt(pt)
+	}
+}
+
+func BenchmarkDecrypt(b *testing.B) {
+	key := make([]byte, 16)
+	nonce := make([]byte, 16)
+	ad := make([]byte, 16)
+	pt := make([]byte, 64)
+	newXd := Instantiate(key, nonce, nil)
+	newXd.Absorb(ad)
+	for n := 0; n < b.N; n++ {
+		newXd.Decrypt(pt)
+	}
 }
