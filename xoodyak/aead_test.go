@@ -338,9 +338,9 @@ func TestStandardAEADInterface(t *testing.T) {
 		assert.NoError(t, gotErr)
 
 		gotNoneSize := gotAEAD.NonceSize()
-		assert.Equal(t, nonceLen, gotNoneSize)
+		assert.Equal(t, NonceLen, gotNoneSize)
 		gotTagSize := gotAEAD.Overhead()
-		assert.Equal(t, tagLen, gotTagSize)
+		assert.Equal(t, TagLen, gotTagSize)
 
 		gotCiphertext := gotAEAD.Seal(nil, tt.nonce, tt.plaintext, tt.ad)
 		fullCipherText := append(tt.ciphertext, tt.tag...)
