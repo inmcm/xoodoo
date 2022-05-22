@@ -262,3 +262,19 @@ func (xk *Xoodyak) Crypt(msg []byte, cm CryptMode) []byte {
 	}
 	return out
 }
+
+// CryptBlock executes one step of the encryption/decryption cycle on the provided bytes.
+// Useful for building more granular encryption decryption functions
+func (xk *Xoodyak) CryptBlock(msg []byte, cu uint8, cm CryptMode) ([]byte, error) {
+	if len(msg) > xoodyakRkOut {
+		return nil, fmt.Errorf("input size [%d] exceeds Xoodoo max encryption block size [%d]", len(msg), xoodyakRkOut)
+	}
+	xk.Up(cu, 0)
+	xorBytes, _ := xk.Instance.XorExtractBytes(msg)
+	if cm == Encrypting {
+		xk.Down(msg, CryptCd)
+	} else {
+		xk.Down(xorBytes, CryptCd)
+	}
+	return xorBytes, nil
+}

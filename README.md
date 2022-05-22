@@ -181,6 +181,85 @@ Authenticated Ciphertext:fffc82f88d8bb2ba4f38b85d6ef42d19830b3f0ecd784be7f4d10f4
 Plaintext:'hello xoodoo'
 ```
 
+For applications that are better suited to streaming bytes via an [io.Reader](https://pkg.go.dev/io#Reader) or [io.Writer](https://pkg.go.dev/io#Writer), the DecryptStream and EncryptStream types are available. These types wrap an existing Writer or Reader to transparently encrypt or decrypt bytes respectively.
+```go
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"strings"
+
+	"github.com/inmcm/xoodoo/xoodyak"
+)
+
+func main() {
+	myMsg := []byte("hello xoodoo")
+	// Normally, this is randomly generated and kept secret
+	myKey := []byte{
+		0x0F, 0x0E, 0x0D, 0x0C,
+		0x0B, 0x0A, 0x09, 0x08,
+		0x07, 0x06, 0x05, 0x04,
+		0x03, 0x02, 0x01, 0x00,
+	}
+	// Normally, this is randomly generated and never repeated per key
+	myNonce := []byte{
+		0xF0, 0xE1, 0xD2, 0xC3,
+		0xB4, 0xA5, 0x96, 0x87,
+		0x78, 0x69, 0x5A, 0x4B,
+		0x3C, 0x2D, 0x1E, 0x0F,
+	}
+	// Any sort of non-secret data
+	myAD := []byte("33°59’39.51″N, 7°50’33.69″E")
+
+	// We want to write our encrypted, authenticated message to this buffer
+	encryptBuf := bytes.NewBuffer(nil)
+	myES, _ := xoodyak.NewEncryptStream(encryptBuf, myKey, myNonce, myAD)
+
+	// Write as many plaintext bytes, as many times, as needed
+	_, err := myES.Write(myMsg)
+	if err != nil {
+		// handle any write errors
+	}
+	// Close must be called after all plaintext is written in order to finalize the encryption and 
+	// generate the authentication tag
+	myES.Close()
+	if err != nil {
+		// handle any final write errors
+	}
+	ciphertext := encryptBuf.Bytes()
+
+	// Now read back the encrypted bytes and decrypt on the fly into another buffer
+	plainTextBuf := bytes.NewBuffer(nil)
+	myDS, _ := xoodyak.NewDecryptStream(encryptBuf, myKey, myNonce, myAD)
+
+	// Read until EOF is reached
+	io.Copy(plainTextBuf, myDS)
+	if err != nil {
+		// handle any read/authentication errors
+	}
+
+	var output strings.Builder
+	fmt.Fprintf(&output, "Msg:'%s'\n", myMsg)
+	fmt.Fprintf(&output, "Key:%x\n", myKey)
+	fmt.Fprintf(&output, "Nonce:%x\n", myNonce)
+	fmt.Fprintf(&output, "Metadata:%x\n", myAD)
+	fmt.Fprintf(&output, "Authenticated Ciphertext:%x\n", ciphertext)
+	fmt.Fprintf(&output, "Plaintext:'%s'", string(plainTextBuf.Bytes()))
+	fmt.Println(output.String())
+}
+```
+```sh
+% go run main.go
+Msg:'hello xoodoo'
+Key:0f0e0d0c0b0a09080706050403020100
+Nonce:f0e1d2c3b4a5968778695a4b3c2d1e0f
+Metadata:3333c2b03539e2809933392e3531e280b34e2c2037c2b03530e2809933332e3639e280b345
+Authenticated Ciphertext:fffc82f88d8bb2ba4f38b85d6ef42d19830b3f0ecd784be7f4d10f46
+Plaintext:'hello xoodoo'
+```
+
 ## Benchmarks
 A collection of micro-benchmarks are provided within each sub-package to allow for performance comparisons between systems and other implementations. To run the entire suite:
 ```sh

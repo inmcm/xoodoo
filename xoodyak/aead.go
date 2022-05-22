@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
+	"io"
 )
 
 const (
@@ -14,6 +15,16 @@ const (
 	TagLen = 16
 	// NonceLen is the number of bytes required for Xoodyak AEAD nonce
 	NonceLen = 16
+
+	decryptBufSize = xoodyakRkOut + TagLen
+)
+
+var (
+	// ErrAuthOpen is returned when the AEAD tag fails to authenticate the decrypted plaintext message
+	ErrAuthOpen = errors.New("xoodyak/aead: message authentication failed")
+
+	// ErrEncryptStreamClosed is returned when trying to close an EncryptStream that has previously been closed
+	ErrEncryptStreamClosed = errors.New("xoodyak/aead: encryptstream already closed")
 )
 
 // CryptoEncryptAEAD encrypts a plaintext message given a 16-byte key, 16-bytes nonce, and optional
@@ -35,7 +46,9 @@ func CryptoEncryptAEAD(in, key, id, ad []byte) (ct, tag []byte, err error) {
 
 // CryptoDecryptAEAD decrypts and authenticates a ciphertext message given a 16-byte key, 16-byte nonce.
 // optional associated metadata bytes, and a 16 byte authentication tag generated at encryption.
-// A plaintext message is only returned if authentication is successful.
+// The valid flag is true if the provided tag validates the decrypted plaintext and is false
+// if the message or tag or invalid (no error is returned in this case)
+// The plaintext message is only returned if authentication is successful
 // This decryption process is compatible with the Xoodyak LWC AEAD implementation.
 func CryptoDecryptAEAD(in, key, id, ad, tag []byte) (pt []byte, valid bool, err error) {
 	if len(key) != KeyLen {
@@ -59,8 +72,6 @@ func CryptoDecryptAEAD(in, key, id, ad, tag []byte) (pt []byte, valid bool, err 
 type xoodyakAEAD struct {
 	key []byte
 }
-
-var errOpen = errors.New("xoodyak/aead: message authentication failed")
 
 // NewXoodyakAEAD accepts a set of key bytes and returns object compatible with
 // the stdlib crypto/cipher AEAD interface
@@ -126,10 +137,240 @@ func (a *xoodyakAEAD) Open(dst, nonce, ciphertext, additionalData []byte) ([]byt
 	tag := ciphertext[len(ciphertext)-TagLen:]
 	pt, valid, _ := CryptoDecryptAEAD(ciphertext[:len(ciphertext)-TagLen], a.key, nonce, additionalData, tag)
 	if !valid {
-		return []byte{}, errOpen
+		return []byte{}, ErrAuthOpen
 	}
 	if dst != nil {
 		return append(dst, pt...), nil
 	}
 	return pt, nil
+}
+
+// EncryptStream implements an io.WriteCloser that can encrypt a stream of bytes according
+// to the Xoodyak LWC AEAD specification.
+type EncryptStream struct {
+	out     io.Writer
+	xk      *Xoodyak
+	x       []byte
+	nx      int
+	cryptCu uint8
+	closed  bool
+}
+
+// NewEncryptStream wraps an existing io.Writer with the Xoodyak LWC AEAD encryption engine given an
+// encryption key, nonce(id) and metadata(ad). The input message may be any length (including zero).
+func NewEncryptStream(target io.Writer, key, id, ad []byte) (*EncryptStream, error) {
+	if len(key) != KeyLen {
+		return nil, fmt.Errorf("xoodyak/aead: given key length (%d bytes) incorrect (%d bytes)", len(key), KeyLen)
+	}
+	if len(id) != NonceLen {
+		return nil, fmt.Errorf("xoodyak/aead: given nonce length (%d bytes) incorrect (%d bytes)", len(id), NonceLen)
+	}
+	new := EncryptStream{
+		out:     target,
+		xk:      Instantiate(key, id, nil),
+		x:       make([]byte, xoodyakRkOut),
+		nx:      0,
+		cryptCu: CryptCuInit,
+		closed:  false,
+	}
+	new.xk.Absorb(ad)
+	return &new, nil
+}
+
+// Write encrypts the provided bytes and passes them to the underlying io.Writer
+// Multiple writes may be used to write out the complete messagage, but because encryption occurs
+// in blocks, plaintext may be buffered between multiple writes.
+// To ensure all plaintext bytes are encrypted and written along with the authentication tag,
+// the Close() method must be called after the final call to Write
+func (es *EncryptStream) Write(p []byte) (n int, err error) {
+	if es.nx > 0 {
+		nn := copy(es.x[es.nx:], p)
+		n += nn
+		es.nx += nn
+		if es.nx == xoodyakRkOut {
+			ct, _ := es.xk.CryptBlock(es.x, es.cryptCu, Encrypting)
+			_, err = es.out.Write(ct)
+			if err != nil {
+				err = fmt.Errorf("xoodyak/aead: encryptstream failed writing: %w", err)
+				return
+			}
+			es.nx = 0
+			es.cryptCu = CryptCuMain
+		}
+		p = p[nn:]
+	}
+	if len(p) >= xoodyakRkOut {
+		nn := len(p) - (len(p) % xoodyakRkOut)
+		for i := 0; i < nn; i += xoodyakRkOut {
+			ct, _ := es.xk.CryptBlock(p[:xoodyakRkOut], es.cryptCu, Encrypting)
+			_, err = es.out.Write(ct)
+			n += xoodyakRkOut
+			if err != nil {
+				err = fmt.Errorf("xoodyak/aead: encryptstream failed writing: %w", err)
+				return
+			}
+			es.cryptCu = CryptCuMain
+			p = p[xoodyakRkOut:]
+		}
+	}
+	if len(p) > 0 {
+		es.nx = copy(es.x, p)
+		n += es.nx
+	}
+	return
+}
+
+// Close finalizes the Xoodayak encryption by encrypting/writing any remaining buffered plaintext
+// as well as generating the authentication tag and passing it to the underlying io.Writer.
+// Note: running this method does not also run Close() on the underlying io.Writer; that should
+// be done seperately after this writer has been closed.
+func (es *EncryptStream) Close() error {
+
+	if es.closed {
+		return ErrEncryptStreamClosed
+	}
+	es.closed = true
+
+	// encrypt any remaining buffered plaintext
+	if es.nx > 0 {
+		ct, _ := es.xk.CryptBlock(es.x[:es.nx], es.cryptCu, Encrypting)
+		_, err := es.out.Write(ct)
+		if err != nil {
+			err = fmt.Errorf("xoodyak/aead: encryptstream failed writing end of stream: %w", err)
+			return err
+		}
+		es.cryptCu = CryptCuMain
+	}
+
+	// If plaintext was empty, process a single empty block to advance the Xoodyak state to the point
+	// we can generate the tag
+	if es.cryptCu == CryptCuInit {
+		es.xk.CryptBlock([]byte{}, es.cryptCu, Encrypting)
+	}
+
+	// Generate and write the auth tag to the
+	tag := es.xk.Squeeze(TagLen)
+	_, err := es.out.Write(tag)
+	if err != nil {
+		err = fmt.Errorf("xoodyak/aead: encryptstream failed writing auth tag: %w", err)
+	}
+	return err
+}
+
+// DecryptStream implements an io.Reader that can decrypt a stream of bytes according
+// to the Xoodyak LWC AEAD specification. The input stream of ciphertext must have a valid authentication
+// tag as the final 16 bytes, but may be proceeded by a encrypted message of any length (including zero)
+type DecryptStream struct {
+	in       io.Reader
+	xk       *Xoodyak
+	x        []byte
+	nx       int
+	pt       []byte
+	ptx      int
+	cryptCu  uint8
+	complete bool
+}
+
+// NewDecryptStream wraps an existing io.Reader with the Xoodyak AEAD decryption engine with
+// a given encryption key, nonce(id) and metadata(ad).
+func NewDecryptStream(source io.Reader, key, id, ad []byte) (*DecryptStream, error) {
+	if len(key) != KeyLen {
+		return nil, fmt.Errorf("xoodyak/aead: given key length (%d bytes) incorrect (%d bytes)", len(key), KeyLen)
+	}
+	if len(id) != NonceLen {
+		return nil, fmt.Errorf("xoodyak/aead: given nonce length (%d bytes) incorrect (%d bytes)", len(id), NonceLen)
+	}
+	new := DecryptStream{
+		in:       source,
+		xk:       Instantiate(key, id, nil),
+		x:        make([]byte, decryptBufSize),
+		nx:       0,
+		ptx:      0,
+		cryptCu:  CryptCuInit,
+		complete: false,
+	}
+	new.xk.Absorb(ad)
+	return &new, nil
+}
+
+// Read decrypts ciphertext bytes from the underlying io.Reader and returns then in provided buffer
+// Multiple reads may be used if the resulting plaintext is larger than the provided output buffer
+// Decryption authentication is performed transparently once all ciphertext input is read out.
+// Failure to authenticate returns an error, otherwise no error is returned beyond EOF.
+// A special "authenticate-only" mode is available if a zero length slice is provided for the output buffer.
+// This forces the full ciphertext of the underlying reader to be read-out, decrypted, and authenticated
+// without any plaintext being returned. This is useful for in cases where the integrity of an encrypted payload needs
+// to be checked, but the underlying plaintext is not required or for zero length authenticated token
+// messages that made up of tag bytes only
+func (ds *DecryptStream) Read(p []byte) (n int, err error) {
+	n = len(p)
+	ptRemain := n
+	var nn int
+	if ds.complete && ds.nx == 0 {
+		return 0, io.EOF
+	}
+
+	for {
+		if ds.ptx == 0 {
+			//try to fill the ct buffer
+			for ds.nx < decryptBufSize {
+				nn, err = ds.in.Read(ds.x[ds.nx:])
+				ds.nx += nn
+				if err == io.EOF {
+					// No more bytes to read
+					ds.complete = true
+					break
+				} else if err != nil {
+					err = fmt.Errorf("xoodyak/aead: decryptstream failed reading: %w", err)
+					return n - ptRemain, err
+				}
+			}
+
+			// try to decrypt the cipher text buffer
+			// only decrypt if we have a full block of bytes or we are at the end of the message
+			// and have some bytes remaining in the buffer
+			if ds.nx == decryptBufSize || (ds.complete && (ds.nx > TagLen)) {
+				//Decrypt a full block of buffered ciphertext in place
+				pt, _ := ds.xk.CryptBlock(ds.x[:ds.nx-TagLen], ds.cryptCu, Decrypting)
+				if n != 0 {
+					ds.ptx = len(pt)
+					copy(ds.x, pt)
+				} else {
+					copy(ds.x, ds.x[len(pt):])
+				}
+				ds.nx = TagLen
+				ds.cryptCu = CryptCuMain
+			}
+		}
+
+		// copy any generated plaintext to output buffer
+		if ds.ptx > 0 && ptRemain > 0 {
+			nn = copy(p[n-ptRemain:], ds.x[:ds.ptx])
+			ds.ptx -= nn
+			ptRemain -= nn
+			copy(ds.x, ds.x[nn:])
+
+		}
+
+		// Check if we've fully read, decrypted, and written the plaintext
+		if ds.ptx <= 0 && ds.complete {
+			// All that should remain in the buffer is the authentication tag bytes
+			if ds.cryptCu == CryptCuInit {
+				// Run one empty decrypt cycle if the ciphertext message len was 0
+				ds.xk.CryptBlock([]byte{}, ds.cryptCu, Decrypting)
+			}
+			calculatedTag := ds.xk.Squeeze(TagLen)
+			ds.nx = 0
+			if subtle.ConstantTimeCompare(calculatedTag, ds.x[:TagLen]) != 1 {
+				return n - ptRemain, ErrAuthOpen
+			}
+			return n - ptRemain, nil
+		}
+
+		if (n > 0 && ptRemain == 0) && ds.ptx > 0 || ds.nx == decryptBufSize {
+			break
+		}
+	}
+
+	return n - ptRemain, nil
 }

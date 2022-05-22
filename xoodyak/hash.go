@@ -47,21 +47,21 @@ func NewXoodyakHash() hash.Hash {
 
 // Write adds more data to the running hash.
 // It never returns an error.
-func (d *digest) Write(p []byte) (nn int, err error) {
+func (d *digest) Write(p []byte) (n int, err error) {
 	absorbSize := int(d.xk.AbsorbSize)
-	nn = len(p)
+	n = len(p)
 	if d.nx > 0 {
-		n := copy(d.x[d.nx:], p)
-		d.nx += n
+		nn := copy(d.x[d.nx:], p)
+		d.nx += nn
 		if d.nx == absorbSize {
 			d.xk.AbsorbBlock(d.x, d.absorbCd)
 			d.nx = 0
 		}
-		p = p[n:]
+		p = p[nn:]
 	}
 	if len(p) >= absorbSize {
-		n := len(p) - (len(p) % absorbSize)
-		for i := 0; i < n; i += absorbSize {
+		nn := len(p) - (len(p) % absorbSize)
+		for i := 0; i < nn; i += absorbSize {
 			d.xk.AbsorbBlock(p[:absorbSize], d.absorbCd)
 			p = p[absorbSize:]
 			d.absorbCd = AbsorbCdMain
