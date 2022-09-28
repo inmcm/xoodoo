@@ -831,6 +831,7 @@ func TestDecryptStreamBigBuffer(t *testing.T) {
 	hasher.Write(gotPtOut[:n])
 	outHash := hasher.Sum(nil)
 	assert.Equal(t, testPTHash, outHash)
+	gotIn.Close()
 
 }
 
@@ -862,6 +863,7 @@ func TestDecryptStreamTinyBuffer(t *testing.T) {
 	hasher.Write(finalBuf)
 	outHash := hasher.Sum(nil)
 	assert.Equal(t, testPTHash, outHash)
+	gotIn.Close()
 }
 
 func TestDecryptStreamBufferSize(t *testing.T) {
@@ -893,6 +895,7 @@ func TestDecryptStreamBufferSize(t *testing.T) {
 		hasher.Write(finalBuf)
 		outHash := hasher.Sum(nil)
 		assert.Equal(t, testPTHash, outHash)
+		gotIn.Close()
 
 	}
 
@@ -934,6 +937,7 @@ func TestDecryptStreamTagFailures(t *testing.T) {
 
 		_, gotErr = ds.Read(gotPtOut)
 		assert.ErrorIs(t, tt.err, gotErr)
+		gotIn.Close()
 	}
 }
 
@@ -1040,6 +1044,7 @@ func TestDecryptStreamVerifyOnly(t *testing.T) {
 		n, err := ds.Read(gotPtOut)
 		assert.Equal(t, 0, n)
 		assert.ErrorIs(t, err, tt.err)
+		gotIn.Close()
 
 	}
 }
@@ -1091,5 +1096,6 @@ func TestSlowReaderDecrypt(t *testing.T) {
 		hasher.Write(gotPtOut[:n])
 		outHash := hasher.Sum(nil)
 		assert.Equal(t, testPTHash, outHash)
+		gotIn.Close()
 	}
 }
