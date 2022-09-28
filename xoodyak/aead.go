@@ -223,7 +223,7 @@ func (es *EncryptStream) Write(p []byte) (n int, err error) {
 // Close finalizes the Xoodayak encryption by encrypting/writing any remaining buffered plaintext
 // as well as generating the authentication tag and passing it to the underlying io.Writer.
 // Note: running this method does not also run Close() on the underlying io.Writer; that should
-// be done seperately after this writer has been closed.
+// be done separately after this writer has been closed.
 func (es *EncryptStream) Close() error {
 
 	if es.closed {
