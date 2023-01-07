@@ -17,6 +17,9 @@ for versions of Go before `1.16` use:
 GO111MODULE=on go get -u github.com/inmcm/xoodoo
 ```
 
+## Command-line Tools
+For examples using this package to process files using the Xoodyak LWC primitives see [xoodyak-tools](https://github.com/inmcm/xoodyak-tools) for cross-platform, command-line tools.
+
 ## Quickstart
 If you need just the LWC defined Xoodyak hashing or AEAD operating modes, examples are given below. For other uses of this package, please consult the documentation.
 
